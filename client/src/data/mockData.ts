@@ -1,0 +1,113 @@
+import { AccessRequest, LogEntry, DashboardMetrics } from '../types';
+
+export const dashboardMetrics: DashboardMetrics = {
+  riskScore: 72,
+  decision: 'DENY',
+  requestsToday: 84,
+  blockedRequests: 17,
+};
+
+export const recentRequests: AccessRequest[] = [
+  {
+    id: '1',
+    user: 'admin',
+    ip: '192.168.1.4',
+    device: 'Linux',
+    riskScore: 12,
+    decision: 'ALLOW',
+    time: '21:00',
+  },
+  {
+    id: '2',
+    user: 'john.doe',
+    ip: '10.0.0.15',
+    device: 'Windows',
+    riskScore: 45,
+    decision: 'VERIFY',
+    time: '20:45',
+  },
+  {
+    id: '3',
+    user: 'attacker',
+    ip: '203.45.67.89',
+    device: 'Unknown',
+    riskScore: 89,
+    decision: 'DENY',
+    time: '20:30',
+  },
+  {
+    id: '4',
+    user: 'jane.smith',
+    ip: '192.168.1.10',
+    device: 'Mobile',
+    riskScore: 28,
+    decision: 'ALLOW',
+    time: '20:15',
+  },
+  {
+    id: '5',
+    user: 'bob.wilson',
+    ip: '172.16.0.5',
+    device: 'Linux',
+    riskScore: 15,
+    decision: 'ALLOW',
+    time: '20:00',
+  },
+];
+
+export const securityLogs: LogEntry[] = [
+  {
+    id: '1',
+    timestamp: '2024-03-14 21:00:45',
+    user: 'admin',
+    ip: '192.168.1.4',
+    device: 'Linux',
+    riskScore: 12,
+    decision: 'ALLOW',
+  },
+  {
+    id: '2',
+    timestamp: '2024-03-14 20:45:12',
+    user: 'john.doe',
+    ip: '10.0.0.15',
+    device: 'Windows',
+    riskScore: 45,
+    decision: 'VERIFY',
+  },
+  {
+    id: '3',
+    timestamp: '2024-03-14 20:30:33',
+    user: 'attacker',
+    ip: '203.45.67.89',
+    device: 'Unknown',
+    riskScore: 89,
+    decision: 'DENY',
+  },
+  {
+    id: '4',
+    timestamp: '2024-03-14 20:15:21',
+    user: 'jane.smith',
+    ip: '192.168.1.10',
+    device: 'Mobile',
+    riskScore: 28,
+    decision: 'ALLOW',
+  },
+  {
+    id: '5',
+    timestamp: '2024-03-14 20:00:55',
+    user: 'bob.wilson',
+    ip: '172.16.0.5',
+    device: 'Linux',
+    riskScore: 15,
+    decision: 'ALLOW',
+  },
+  {
+    id: '6',
+    timestamp: '2024-03-14 19:45:18',
+    user: 'suspicious',
+    ip: '185.220.101.45',
+    device: 'Unknown',
+    riskScore: 92,
+    decision: 'DENY',
+  },
+];
