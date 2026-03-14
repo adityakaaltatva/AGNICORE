@@ -1,10 +1,10 @@
 import { LucideIcon } from 'lucide-react';
 
 interface MetricCardProps {
-  title: string;
-  value: string | number;
-  icon: LucideIcon;
-  color: string;
+  readonly title: string;
+  readonly value: string | number;
+  readonly icon: LucideIcon;
+  readonly color: string;
 }
 
 export default function MetricCard({ title, value, icon: Icon, color }: MetricCardProps) {
