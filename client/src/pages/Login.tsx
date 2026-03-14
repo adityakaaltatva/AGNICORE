@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Shield } from 'lucide-react';
 
 interface LoginProps {
-  onLogin: () => void;
+  readonly onLogin: () => void;
 }
 
 export default function Login({ onLogin }: LoginProps) {
@@ -25,8 +25,9 @@ export default function Login({ onLogin }: LoginProps) {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Username</label>
+            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">Username</label>
             <input
+              id="username"
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -37,8 +38,9 @@ export default function Login({ onLogin }: LoginProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">Password</label>
             <input
+              id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
