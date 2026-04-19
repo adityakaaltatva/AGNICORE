@@ -1,0 +1,33 @@
+[package]
+name = "agnicore"
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Name <you@example.com>"]
+description = "Core AGNI server backend"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/your-org/AGNICORE"
+readme = "README.md"
+keywords = ["rust", "backend", "api", "axum"]
+categories = ["network-programming", "web-programming"]
+
+[dependencies]
+axum = "0.8"
+tokio = { version = "1.47", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
+uuid = { version = "1.4", features = ["serde", "v4"] }
+async-trait = "0.1"
+anyhow = "1.0"
+config = "0.14"
+dotenvy = "0.15"
+chrono = "0.4.44"
+
+[profile.release]
+opt-level = "z"
+strip = "symbols"
+codegen-units = 1
+lto = true
+panic = "abort"
