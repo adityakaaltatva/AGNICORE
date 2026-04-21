@@ -11,7 +11,7 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            database_url: "sqlite::memory:".to_string(),
+            database_url: "sqlite:agnicore.db".to_string(),
             jwt_secret: "your-secret-key".to_string(),
             jwt_expiry_hours: 24,
             server_port: 3000,
