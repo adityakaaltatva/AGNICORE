@@ -1,7 +1,8 @@
 use axum::{routing::get, Json, Router};
 use serde_json::json;
+use crate::app::AppState;
 
-pub fn create_route() -> Router {
+pub fn create_route() -> Router<AppState> {
     Router::new().route("/health", get(health_check))
 }
 

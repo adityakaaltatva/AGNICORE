@@ -1,8 +1,11 @@
 mod handlers;
+mod app;
+mod config;
+mod routes;
 
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
-use axum::{routing::post, Router};
+use axum::extract::connect_info::IntoMakeServiceWithConnectInfo;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 mod errors;
 mod db;
@@ -17,21 +20,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    // 🔹 Build router (TEMP — until full app.rs is ready)
-    let app = Router::new()
-        .route("/", axum::routing::get(root))
-        .route("/access", post(handlers::access_handler::handle_access));
+    // 🔹 Build router
+    let app = app::create_app().await?;
 
     // 🔹 Bind server
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     tracing::info!("listening on {}", addr);
 
     let listener = TcpListener::bind(addr).await?;
-    axum::serve(listener, app).await?;
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await?;
 
     Ok(())
-}
-
-async fn root() -> &'static str {
-    "Agnicore running"
 }

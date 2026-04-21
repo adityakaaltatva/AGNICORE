@@ -1,7 +1,5 @@
 use sqlx::SqlitePool;
 
-pub async fn connect_db() -> SqlitePool {
-    SqlitePool::connect("sqlite:agnicore.db")
-        .await
-        .expect("Failed to connect DB")
+pub async fn connect_db(database_url: &str) -> Result<SqlitePool, sqlx::Error> {
+    SqlitePool::connect(database_url).await
 }

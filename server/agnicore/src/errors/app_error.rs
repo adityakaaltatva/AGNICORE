@@ -19,6 +19,9 @@ pub enum AppError {
 
     #[error("Forbidden")]
     Forbidden,
+
+    #[error("Database error: {0}")]
+    DatabaseError(String),
 }
 
 #[derive(Serialize)]
@@ -34,6 +37,7 @@ impl IntoResponse for AppError {
             AppError::BadRequest(_) => (StatusCode::BAD_REQUEST, self.to_string()),
             AppError::Unauthorized => (StatusCode::UNAUTHORIZED, self.to_string()),
             AppError::Forbidden => (StatusCode::FORBIDDEN, self.to_string()),
+            AppError::DatabaseError(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Database error".to_string()),
         };
 
         let body = ErrorResponse {
