@@ -1,18 +1,38 @@
-use async_trait::async_trait;
-use crate::domain::AccessRequest;
+use sqlx::SqlitePool;
+use uuid::Uuid;
+use chrono::Utc;
 
-#[async_trait]
-pub trait LogRepository: Send + Sync {
-    async fn log_access(&self, request: &AccessRequest, decision: &str) -> Result<(), crate::errors::AppError>;
+pub async fn count_recent_requests(pool: &SqlitePool, user: &str) -> i64 {
+    sqlx::query_scalar(
+        "SELECT COUNT(*) FROM logs 
+         WHERE user = ? 
+         AND datetime(created_at) > datetime('now', '-5 minutes')"
+    )
+    .bind(user)
+    .fetch_one(pool)
+    .await
+    .unwrap_or(0)
 }
 
-pub struct DefaultLogRepository;
-
-#[async_trait]
-impl LogRepository for DefaultLogRepository {
-    async fn log_access(&self, request: &AccessRequest, decision: &str) -> Result<(), crate::errors::AppError> {
-        // TODO: Implement actual logging to database
-        tracing::info!("Access logged: user={}, resource={}, decision={}", request.user_id, request.resource, decision);
-        Ok(())
-    }
+pub async fn insert_log(
+    pool: &SqlitePool,
+    user: &str,
+    resource: &str,
+    ip: &str,
+    risk: i32,
+    decision: &str,
+) {
+    let _ = sqlx::query(
+        "INSERT INTO logs (id, user, resource, ip, risk_score, decision, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)"
+    )
+    .bind(Uuid::new_v4().to_string())
+    .bind(user)
+    .bind(resource)
+    .bind(ip)
+    .bind(risk)
+    .bind(decision)
+    .bind(Utc::now().to_string())
+    .execute(pool)
+    .await;
 }

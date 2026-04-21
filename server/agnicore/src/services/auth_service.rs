@@ -1,12 +1,21 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use chrono::Utc;
+use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
     pub id: Uuid,
     pub username: String,
     pub email: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Claims {
+    pub sub: String,
+    pub role: String,   // 🔥 ADD THIS
+    pub exp: usize,
 }
 
 #[async_trait]
@@ -36,5 +45,23 @@ impl AuthService for DefaultAuthService {
     async fn validate_token(&self, token: &str) -> Result<bool, crate::errors::AppError> {
         // TODO: Implement actual token validation
         Ok(!token.is_empty())
+    }
+}
+
+pub fn validate_token(token: &str, secret: &str) -> (String, String) {
+    match decode::<Claims>(
+        token,
+        &DecodingKey::from_secret(secret.as_ref()),
+        &Validation::new(Algorithm::HS256),
+    ) {
+        Ok(data) => {
+            let now = Utc::now().timestamp() as usize;
+            if data.claims.exp < now {
+                ("expired_user".to_string(), "unknown".to_string())
+            } else {
+                (data.claims.sub, data.claims.role)
+            }
+        }
+        Err(_) => ("invalid_user".to_string(), "unknown".to_string()),
     }
 }

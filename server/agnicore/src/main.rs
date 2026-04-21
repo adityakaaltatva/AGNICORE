@@ -1,14 +1,15 @@
-mod handlers;
 mod app;
 mod config;
+mod db;
+mod errors;
+mod handlers;
 mod routes;
 
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use axum::extract::connect_info::IntoMakeServiceWithConnectInfo;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-mod errors;
-mod db;
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 🔹 Initialize logging
@@ -20,14 +21,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    // 🔹 Build router
+    // 🔹 Build application (router + state)
     let app = app::create_app().await?;
 
-    // 🔹 Bind server
+    // 🔹 Server address
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     tracing::info!("listening on {}", addr);
 
+    // 🔹 Bind TCP listener
     let listener = TcpListener::bind(addr).await?;
+
+    // 🔹 Start server with client IP support
     axum::serve(
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
