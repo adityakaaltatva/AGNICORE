@@ -1,9 +1,7 @@
-use std::sync::Arc;
+use sqlx::SqlitePool;
 
-pub type DatabaseConnection = Arc<dyn std::any::Any + Send + Sync>;
-
-pub async fn establish_connection() -> Result<DatabaseConnection, crate::errors::AppError> {
-    // TODO: Implement actual database connection
-    // For now, return a mock connection
-    Ok(Arc::new(()))
+pub async fn connect_db() -> SqlitePool {
+    SqlitePool::connect("sqlite:agnicore.db")
+        .await
+        .expect("Failed to connect DB")
 }

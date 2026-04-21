@@ -1,22 +1,14 @@
-mod app;
-mod config;
-mod db;
-mod domain;
-mod errors;
 mod handlers;
-mod middleware;
-mod repository;
-mod routes;
-mod services;
-mod utils;
 
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
+use axum::{routing::post, Router};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-
+mod errors;
+mod db;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize tracing
+    // 🔹 Initialize logging
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -25,10 +17,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    // Build the application
-    let app = app::create_app().await?;
+    // 🔹 Build router (TEMP — until full app.rs is ready)
+    let app = Router::new()
+        .route("/", axum::routing::get(root))
+        .route("/access", post(handlers::access_handler::handle_access));
 
-    // Run the server
+    // 🔹 Bind server
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     tracing::info!("listening on {}", addr);
 
@@ -36,4 +30,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     axum::serve(listener, app).await?;
 
     Ok(())
+}
+
+async fn root() -> &'static str {
+    "Agnicore running"
 }
