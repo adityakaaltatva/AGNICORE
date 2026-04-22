@@ -23,9 +23,9 @@ export default function MetricCard({
   tone,
 }: MetricCardProps) {
   return (
-    <div className="glass-panel section-shell relative overflow-hidden">
-      <div className="ambient-orb -right-8 top-0 h-24 w-24 bg-white/10" />
-      <div className={`absolute inset-x-0 top-0 h-px bg-gradient-to-r ${toneClasses[tone]}`} />
+    <div className="glass-panel-strong section-shell relative overflow-hidden transition-all duration-300 hover:scale-[1.02]">
+      <div className="ambient-orb -right-8 top-0 h-32 w-32 bg-white/5 opacity-50" />
+      <div className={`absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r ${toneClasses[tone]}`} />
       <div className="relative flex items-start justify-between gap-4">
         <div className="space-y-3">
           <p className="eyebrow">{title}</p>

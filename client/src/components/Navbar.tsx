@@ -10,9 +10,9 @@ interface NavbarProps {
 export default function Navbar({ currentPage, onLogout, onOpenMenu }: NavbarProps) {
   return (
     <header className="page-grid pb-0">
-      <div className="glass-panel section-shell relative overflow-hidden">
-        <div className="ambient-orb -left-8 top-0 h-28 w-28 bg-sky-400/10" />
-        <div className="ambient-orb bottom-0 right-0 h-24 w-24 bg-rose-400/10" />
+      <div className="glass-panel-strong section-shell relative overflow-hidden">
+        <div className="ambient-orb -left-12 top-0 h-32 w-32 bg-sky-400/5 opacity-50" />
+        <div className="ambient-orb bottom-0 right-0 h-28 w-28 bg-rose-400/5 opacity-50" />
         <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-3">
             <button

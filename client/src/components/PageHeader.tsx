@@ -15,12 +15,12 @@ export default function PageHeader({
 }: PageHeaderProps) {
   return (
     <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-      <div className="max-w-3xl space-y-3">
-        <p className="eyebrow">{eyebrow}</p>
-        <h1 className="text-balance text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+      <div className="max-w-3xl space-y-2">
+        <p className="eyebrow text-rose-400/80">{eyebrow}</p>
+        <h1 className="text-balance text-4xl font-bold tracking-tighter text-white sm:text-5xl">
           {title}
         </h1>
-        <p className="max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
+        <p className="max-w-2xl text-sm font-medium leading-relaxed text-slate-400 sm:text-lg">
           {description}
         </p>
       </div>

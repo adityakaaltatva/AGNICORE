@@ -87,14 +87,14 @@ export default function RequestsTable({ requests }: RequestsTableProps) {
   };
 
   return (
-    <section className="glass-panel-strong section-shell overflow-hidden">
-      <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <section className="glass-panel-strong section-shell relative overflow-hidden">
+      <div className="ambient-orb -left-12 top-0 h-48 w-48 bg-white/5 opacity-30" />
+      <div className="relative mb-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="eyebrow">Recent Requests</p>
           <h2 className="panel-title text-2xl">Live analyst feed</h2>
           <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-300">
-            Search, sort, and inspect requests to understand what pushed each decision toward
-            allow, verify, or deny.
+            Search, sort, and inspect requests to understand what pushed each decision.
           </p>
         </div>
 
@@ -103,7 +103,7 @@ export default function RequestsTable({ requests }: RequestsTableProps) {
             <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
             <input
               type="text"
-              placeholder="Search by user, IP, device, or resource"
+              placeholder="Search actor or resource"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               className="field-shell w-full pl-11"
@@ -127,7 +127,7 @@ export default function RequestsTable({ requests }: RequestsTableProps) {
         </div>
       </div>
 
-      <div className="overflow-x-auto scrollbar-subtle">
+      <div className="relative overflow-x-auto scrollbar-subtle">
         <table className="min-w-full border-separate border-spacing-y-3">
           <thead>
             <tr className="text-left text-xs uppercase tracking-[0.24em] text-slate-500">
@@ -153,7 +153,7 @@ export default function RequestsTable({ requests }: RequestsTableProps) {
                   {renderSortIcon('time')}
                 </button>
               </th>
-              <th className="px-4 py-2 font-medium">Inspect</th>
+              <th className="px-4 py-2 font-medium text-center">Inspect</th>
             </tr>
           </thead>
           <tbody>
@@ -163,11 +163,10 @@ export default function RequestsTable({ requests }: RequestsTableProps) {
               const DecisionIcon = decisionMeta.icon;
 
               return (
-                <tr key={request.id} className="glass-inset">
+                <tr key={request.id} className="glass-inset transition-colors duration-200 hover:bg-white/5">
                   <td className="rounded-l-[22px] px-4 py-4 align-top">
                     <div className="text-sm font-medium text-white">{request.user}</div>
                     <div className="mt-2 text-xs font-mono text-slate-400">{request.ip}</div>
-                    <div className="mt-2 text-xs text-slate-500">{request.trustLabel}</div>
                   </td>
                   <td className="px-4 py-4 align-top text-sm text-slate-300">
                     <div className="font-medium text-white">{request.resource}</div>
@@ -191,10 +190,10 @@ export default function RequestsTable({ requests }: RequestsTableProps) {
                     </div>
                   </td>
                   <td className="px-4 py-4 align-top text-sm text-slate-300">{request.time}</td>
-                  <td className="rounded-r-[22px] px-4 py-4 align-top">
+                  <td className="rounded-r-[22px] px-4 py-4 align-top text-center">
                     <button
                       onClick={() => setSelectedRequest(request)}
-                      className="inline-flex rounded-2xl border border-white/10 bg-white/5 p-3 text-slate-200 transition hover:bg-white/10"
+                      className="inline-flex rounded-2xl border border-white/10 bg-white/5 p-3 text-slate-200 transition hover:bg-white/10 hover:text-white"
                     >
                       <Eye className="h-4 w-4" />
                     </button>
@@ -207,28 +206,24 @@ export default function RequestsTable({ requests }: RequestsTableProps) {
       </div>
 
       {filteredAndSorted.length === 0 ? (
-        <div className="mt-4 rounded-[22px] border border-white/8 bg-black/10 px-4 py-8 text-center text-sm text-slate-400">
-          No requests matched the current search and filter state.
+        <div className="relative mt-4 rounded-[22px] border border-white/8 bg-black/10 px-4 py-8 text-center text-sm text-slate-400">
+          No requests matched the current filters.
         </div>
       ) : null}
 
       {selectedRequest ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-md">
-          <div className="glass-panel-strong w-full max-w-2xl rounded-[30px] p-6">
+          <div className="glass-panel-strong w-full max-w-2xl rounded-[30px] p-6 shadow-2xl">
             <div className="mb-6 flex items-start justify-between gap-4">
               <div>
                 <p className="eyebrow">Request Detail</p>
                 <h3 className="mt-2 text-2xl font-semibold tracking-tight text-white">
                   {selectedRequest.user}
                 </h3>
-                <p className="mt-2 text-sm text-slate-300">
-                  Detailed context behind the selected access decision.
-                </p>
               </div>
               <button
                 onClick={() => setSelectedRequest(null)}
                 className="button-secondary !rounded-full !p-3"
-                aria-label="Close detail modal"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -239,33 +234,23 @@ export default function RequestsTable({ requests }: RequestsTableProps) {
                 <p className="eyebrow">Identity</p>
                 <p className="mt-3 text-lg font-semibold text-white">{selectedRequest.user}</p>
                 <p className="mt-2 text-sm font-mono text-slate-400">{selectedRequest.ip}</p>
-                <p className="mt-2 text-sm text-slate-300">{selectedRequest.trustLabel}</p>
               </div>
               <div className="glass-inset rounded-[24px] p-4">
                 <p className="eyebrow">Request shape</p>
                 <p className="mt-3 text-lg font-semibold text-white">{selectedRequest.resource}</p>
-                <p className="mt-2 text-sm text-slate-300">
-                  {selectedRequest.action} from {selectedRequest.location}
-                </p>
-                <p className="mt-2 text-sm text-slate-400">{selectedRequest.device}</p>
+                <p className="mt-2 text-sm text-slate-300">{selectedRequest.action}</p>
               </div>
               <div className="glass-inset rounded-[24px] p-4">
                 <p className="eyebrow">Risk snapshot</p>
                 <div className={`mt-3 decision-badge ${getRiskMeta(selectedRequest.riskScore).toneClassName}`}>
                   {selectedRequest.riskScore} / {getRiskMeta(selectedRequest.riskScore).label}
                 </div>
-                <p className="mt-3 text-sm text-slate-300">Observed at {selectedRequest.time}</p>
               </div>
               <div className="glass-inset rounded-[24px] p-4">
                 <p className="eyebrow">Decision</p>
-                <div
-                  className={`mt-3 decision-badge ${getDecisionMeta(selectedRequest.decision).badgeClassName}`}
-                >
+                <div className={`mt-3 decision-badge ${getDecisionMeta(selectedRequest.decision).badgeClassName}`}>
                   {selectedRequest.decision}
                 </div>
-                <p className="mt-3 text-sm text-slate-300">
-                  Severity tagged as {selectedRequest.severity}.
-                </p>
               </div>
             </div>
 

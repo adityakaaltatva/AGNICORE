@@ -54,7 +54,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cors = tower_http::cors::CorsLayer::new()
         .allow_origin("http://localhost:5173".parse::<axum::http::HeaderValue>().unwrap())
         .allow_methods([axum::http::Method::GET, axum::http::Method::POST])
-        .allow_headers([axum::http::HeaderName::from_static("content-type")]);
+        .allow_headers([
+            axum::http::HeaderName::from_static("content-type"),
+            axum::http::HeaderName::from_static("authorization"),
+        ]);
 
     let app = Router::new()
         .route("/", get(root))
@@ -62,8 +65,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_state(log_repo)
         .layer(cors);
 
-    // 🔹 Server address
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    // 🔹 Bind server
+    let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
     tracing::info!("listening on {}", addr);
 
     // 🔹 Bind TCP listener

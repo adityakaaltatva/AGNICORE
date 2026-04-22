@@ -57,28 +57,32 @@ export default function Logs() {
       </PageHeader>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="glass-panel section-shell">
-          <p className="eyebrow">Denied attempts</p>
-          <p className="mt-3 text-3xl font-semibold text-white">{highSeverityCount}</p>
-          <p className="mt-2 text-sm text-slate-300">Privileged and anonymous request blocks</p>
+        <div className="glass-panel-strong section-shell relative overflow-hidden transition-all duration-300 hover:scale-[1.02]">
+          <div className="ambient-orb -right-8 top-0 h-24 w-24 bg-rose-400/5 opacity-50" />
+          <p className="eyebrow text-rose-400/80">Denied attempts</p>
+          <p className="mt-3 text-4xl font-bold text-white tracking-tighter">{highSeverityCount}</p>
+          <p className="mt-2 text-xs font-medium text-slate-400">Critical policy blocks</p>
         </div>
-        <div className="glass-panel section-shell">
-          <p className="eyebrow">Verification prompts</p>
-          <p className="mt-3 text-3xl font-semibold text-white">{verifyCount}</p>
-          <p className="mt-2 text-sm text-slate-300">Requests escalated for step-up proof</p>
+        <div className="glass-panel-strong section-shell relative overflow-hidden transition-all duration-300 hover:scale-[1.02]">
+          <div className="ambient-orb -right-8 top-0 h-24 w-24 bg-amber-400/5 opacity-50" />
+          <p className="eyebrow text-amber-400/80">Verification prompts</p>
+          <p className="mt-3 text-4xl font-bold text-white tracking-tighter">{verifyCount}</p>
+          <p className="mt-2 text-xs font-medium text-slate-400">Step-up challenges issued</p>
         </div>
-        <div className="glass-panel section-shell">
-          <p className="eyebrow">Audit coverage</p>
-          <p className="mt-3 text-3xl font-semibold text-white">100%</p>
-          <p className="mt-2 text-sm text-slate-300">Every decision includes contextual evidence</p>
+        <div className="glass-panel-strong section-shell relative overflow-hidden transition-all duration-300 hover:scale-[1.02]">
+          <div className="ambient-orb -right-8 top-0 h-24 w-24 bg-emerald-400/5 opacity-50" />
+          <p className="eyebrow text-emerald-400/80">Audit coverage</p>
+          <p className="mt-3 text-4xl font-bold text-white tracking-tighter">100%</p>
+          <p className="mt-2 text-xs font-medium text-slate-400">Full contextual retention</p>
         </div>
       </div>
 
-      <section className="glass-panel-strong section-shell overflow-hidden">
-        <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <section className="glass-panel-strong section-shell relative overflow-hidden">
+        <div className="ambient-orb -left-12 top-0 h-48 w-48 bg-white/5 opacity-30" />
+        <div className="relative mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="eyebrow">Decision Ledger</p>
-            <h2 className="panel-title text-2xl">Analyst review stream</h2>
+            <p className="eyebrow text-sky-400/80">Decision Ledger</p>
+            <h2 className="panel-title text-2xl font-bold tracking-tight">Analyst review stream</h2>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
             <div className="relative">

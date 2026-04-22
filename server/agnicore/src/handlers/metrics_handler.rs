@@ -12,6 +12,7 @@ pub struct DashboardMetrics {
     pub verification_queue: i64,
     pub trust_coverage: String,
     pub threat_index: String,
+    pub decision: String,
 }
 
 pub async fn handle_get_metrics(
@@ -26,13 +27,15 @@ pub async fn handle_get_metrics(
     } else {
         0
     };
+    let latest_decision = logs.first().map(|l| l.decision.clone()).unwrap_or_else(|| "ALLOW".to_string());
 
     Ok(Json(DashboardMetrics {
         risk_score: avg_risk,
         requests_today: total,
         blocked_requests: blocked,
-        verification_queue: total / 10, // Mocked for now based on total
-        trust_coverage: "94%".to_string(), // Mocked as it requires endpoint tracking
-        threat_index: format!("{:+}%", (blocked * 100) / (total.max(1))),
+        verification_queue: total / 10,
+        trust_coverage: "94%".to_string(),
+        threat_index: format!("{:+}%", if total > 0 { (blocked * 100) / total } else { 0 }),
+        decision: latest_decision,
     }))
 }

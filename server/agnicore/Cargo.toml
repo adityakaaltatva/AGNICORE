@@ -24,7 +24,7 @@ anyhow = "1.0"
 config = "0.14"
 dotenvy = "0.15"
 chrono = "0.4.44"
-jsonwebtoken = "10.3.0"
+jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }
 sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "sqlite", "macros", "derive"] }
 
 tower-http = { version = "0.6", features = ["cors", "trace"] }
