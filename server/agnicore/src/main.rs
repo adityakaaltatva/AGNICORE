@@ -1,7 +1,3 @@
-mod app;
-mod config;
-mod db;
-mod errors;
 mod handlers;
 mod routes;
 mod domain;
@@ -69,15 +65,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
     tracing::info!("listening on {}", addr);
 
-    // 🔹 Bind TCP listener
     let listener = TcpListener::bind(addr).await?;
-
-    // 🔹 Start server with client IP support
-    axum::serve(
-        listener,
-        app.into_make_service_with_connect_info::<SocketAddr>(),
-    )
-    .await?;
+    axum::serve(listener, app).await?;
 
     Ok(())
 }

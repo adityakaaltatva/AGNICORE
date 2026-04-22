@@ -4,10 +4,7 @@ use axum::Json;
 use chrono::{Duration, Utc};
 use jsonwebtoken::{encode, EncodingKey, Header};
 use serde::{Deserialize, Serialize};
-use jsonwebtoken::{encode, Header, EncodingKey, Algorithm};
-use chrono::{Utc, Duration};
-use crate::app::AppState;
-use crate::errors::app_error::AppError;
+use uuid::Uuid;
 
 #[derive(Deserialize)]
 pub struct TokenRequest {
@@ -58,7 +55,6 @@ fn validate_role(role: &str) -> Result<(), crate::errors::AppError> {
 }
 
 pub async fn issue_token(
-    State(state): State<AppState>,
     Json(req): Json<TokenRequest>,
 ) -> Result<Json<TokenResponse>, crate::errors::AppError> {
     let issuer_enabled = env::var("ENABLE_DEV_TOKEN_ISSUER").unwrap_or_default() == "true";
