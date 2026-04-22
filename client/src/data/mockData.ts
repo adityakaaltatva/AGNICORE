@@ -5,6 +5,9 @@ export const dashboardMetrics: DashboardMetrics = {
   decision: 'DENY',
   requestsToday: 84,
   blockedRequests: 17,
+  verificationQueue: 9,
+  trustCoverage: '92%',
+  threatIndex: '+18%',
 };
 
 export const recentRequests: AccessRequest[] = [
@@ -16,6 +19,11 @@ export const recentRequests: AccessRequest[] = [
     riskScore: 12,
     decision: 'ALLOW',
     time: '21:00',
+    resource: 'finance/reports',
+    action: 'read',
+    location: 'Trusted',
+    severity: 'low',
+    trustLabel: 'Managed endpoint',
   },
   {
     id: '2',
@@ -25,6 +33,11 @@ export const recentRequests: AccessRequest[] = [
     riskScore: 45,
     decision: 'VERIFY',
     time: '20:45',
+    resource: 'engineering/ci',
+    action: 'write',
+    location: 'External',
+    severity: 'medium',
+    trustLabel: 'Unknown posture drift',
   },
   {
     id: '3',
@@ -34,6 +47,11 @@ export const recentRequests: AccessRequest[] = [
     riskScore: 89,
     decision: 'DENY',
     time: '20:30',
+    resource: 'admin/root',
+    action: 'write',
+    location: 'Unknown',
+    severity: 'high',
+    trustLabel: 'Untrusted request chain',
   },
   {
     id: '4',
@@ -43,6 +61,11 @@ export const recentRequests: AccessRequest[] = [
     riskScore: 28,
     decision: 'ALLOW',
     time: '20:15',
+    resource: 'sales/portal',
+    action: 'read',
+    location: 'Trusted',
+    severity: 'low',
+    trustLabel: 'MFA satisfied',
   },
   {
     id: '5',
@@ -52,6 +75,11 @@ export const recentRequests: AccessRequest[] = [
     riskScore: 15,
     decision: 'ALLOW',
     time: '20:00',
+    resource: 'ops/observability',
+    action: 'read',
+    location: 'Trusted',
+    severity: 'low',
+    trustLabel: 'Behavior matches baseline',
   },
 ];
 
@@ -64,6 +92,10 @@ export const securityLogs: LogEntry[] = [
     device: 'Linux',
     riskScore: 12,
     decision: 'ALLOW',
+    location: 'Trusted HQ',
+    resource: 'finance/reports',
+    reason: 'Known workstation and normal read behavior',
+    severity: 'low',
   },
   {
     id: '2',
@@ -73,6 +105,10 @@ export const securityLogs: LogEntry[] = [
     device: 'Windows',
     riskScore: 45,
     decision: 'VERIFY',
+    location: 'Remote Office',
+    resource: 'engineering/ci',
+    reason: 'Write action from partially trusted device',
+    severity: 'medium',
   },
   {
     id: '3',
@@ -82,6 +118,10 @@ export const securityLogs: LogEntry[] = [
     device: 'Unknown',
     riskScore: 89,
     decision: 'DENY',
+    location: 'Unknown Region',
+    resource: 'admin/root',
+    reason: 'Unknown device attempted privileged write access',
+    severity: 'high',
   },
   {
     id: '4',
@@ -91,6 +131,10 @@ export const securityLogs: LogEntry[] = [
     device: 'Mobile',
     riskScore: 28,
     decision: 'ALLOW',
+    location: 'Trusted HQ',
+    resource: 'sales/portal',
+    reason: 'Low risk request after successful verification',
+    severity: 'low',
   },
   {
     id: '5',
@@ -100,6 +144,10 @@ export const securityLogs: LogEntry[] = [
     device: 'Linux',
     riskScore: 15,
     decision: 'ALLOW',
+    location: 'Data Center',
+    resource: 'ops/observability',
+    reason: 'Policy baseline matched expected telemetry access',
+    severity: 'low',
   },
   {
     id: '6',
@@ -109,5 +157,9 @@ export const securityLogs: LogEntry[] = [
     device: 'Unknown',
     riskScore: 92,
     decision: 'DENY',
+    location: 'Unknown Region',
+    resource: 'admin/credentials',
+    reason: 'Repeated denied attempts from anonymous endpoint',
+    severity: 'high',
   },
 ];

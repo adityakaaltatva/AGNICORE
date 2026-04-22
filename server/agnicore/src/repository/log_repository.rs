@@ -1,38 +1,58 @@
+use async_trait::async_trait;
 use sqlx::SqlitePool;
-use uuid::Uuid;
+use crate::domain::models::LogEntry;
 use chrono::Utc;
+use uuid::Uuid;
 
-pub async fn count_recent_requests(pool: &SqlitePool, user: &str) -> i64 {
-    sqlx::query_scalar(
-        "SELECT COUNT(*) FROM logs 
-         WHERE user = ? 
-         AND datetime(created_at) > datetime('now', '-5 minutes')"
-    )
-    .bind(user)
-    .fetch_one(pool)
-    .await
-    .unwrap_or(0)
+#[async_trait]
+pub trait LogRepository: Send + Sync {
+    async fn log_access(&self, user: &str, resource: &str, risk: i32, decision: &str) -> Result<(), crate::errors::AppError>;
+    async fn get_recent_logs(&self, limit: i64) -> Result<Vec<LogEntry>, crate::errors::AppError>;
 }
 
-pub async fn insert_log(
-    pool: &SqlitePool,
-    user: &str,
-    resource: &str,
-    ip: &str,
-    risk: i32,
-    decision: &str,
-) {
-    let _ = sqlx::query(
-        "INSERT INTO logs (id, user, resource, ip, risk_score, decision, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)"
-    )
-    .bind(Uuid::new_v4().to_string())
-    .bind(user)
-    .bind(resource)
-    .bind(ip)
-    .bind(risk)
-    .bind(decision)
-    .bind(Utc::now().to_string())
-    .execute(pool)
-    .await;
+pub struct SqliteLogRepository {
+    pool: SqlitePool,
+}
+
+impl SqliteLogRepository {
+    pub fn new(pool: SqlitePool) -> Self {
+        Self { pool }
+    }
+}
+
+#[async_trait]
+impl LogRepository for SqliteLogRepository {
+    async fn log_access(&self, user: &str, resource: &str, risk: i32, decision: &str) -> Result<(), crate::errors::AppError> {
+        sqlx::query(
+            "INSERT INTO logs (id, user, resource, risk_score, decision, created_at)
+             VALUES (?, ?, ?, ?, ?, ?)"
+        )
+        .bind(Uuid::new_v4().to_string())
+        .bind(user)
+        .bind(resource)
+        .bind(risk)
+        .bind(decision)
+        .bind(Utc::now().to_rfc3339())
+        .execute(&self.pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error: {e}");
+            crate::errors::AppError::InternalServerError
+        })?;
+        Ok(())
+    }
+
+    async fn get_recent_logs(&self, limit: i64) -> Result<Vec<LogEntry>, crate::errors::AppError> {
+        let logs = sqlx::query_as::<_, LogEntry>(
+            "SELECT id, user, resource, risk_score, decision, created_at FROM logs ORDER BY created_at DESC LIMIT ?"
+        )
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error: {e}");
+            crate::errors::AppError::InternalServerError
+        })?;
+        Ok(logs)
+    }
 }

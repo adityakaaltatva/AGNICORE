@@ -1,13 +1,12 @@
-use axum::extract::{Json, State, ConnectInfo};
+use std::env;
+use std::sync::Arc;
+
+use axum::extract::{Json, State};
+use chrono::{Utc, Timelike};
+use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm};
-use chrono::{Utc, Timelike};
-use uuid::Uuid;
-use std::net::SocketAddr;
-
-use crate::app::AppState;
-use crate::errors::app_error::AppError;
+use crate::repository::log_repository::LogRepository;
 
 #[derive(Deserialize)]
 pub struct AccessRequest {
@@ -22,62 +21,50 @@ struct Claims {
     exp: usize,
 }
 
-pub fn validate_token(token: &str, secret: &str) -> (String, String) {
-    match decode::<Claims>(
-        token,
-        &DecodingKey::from_secret(secret.as_ref()),
-        &Validation::new(Algorithm::HS256),
-    ) {
-        Ok(data) => {
-            let now = Utc::now().timestamp() as usize;
-            if data.claims.exp < now {
-                ("expired_user".to_string(), "unknown".to_string())
-            } else {
-                (data.claims.sub, data.claims.role)
-            }
-        }
-        Err(_) => ("invalid_user".to_string(), "unknown".to_string()),
+fn jwt_secret() -> Result<String, crate::errors::AppError> {
+    let secret = env::var("JWT_SECRET").map_err(|_| crate::errors::AppError::InternalServerError)?;
+    if secret.len() < 32 {
+        return Err(crate::errors::AppError::InternalServerError);
+    }
+    Ok(secret)
+}
+
+fn validate_resource(resource: &str) -> Result<(), crate::errors::AppError> {
+    let trimmed = resource.trim();
+    let is_valid = !trimmed.is_empty()
+        && trimmed.len() <= 128
+        && trimmed
+            .chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '/' | '_' | '-' | '.'));
+
+    if is_valid {
+        Ok(())
+    } else {
+        Err(crate::errors::AppError::BadRequest(
+            "resource must be 1-128 chars and only contain letters, numbers, /, _, -, or .".to_string(),
+        ))
     }
 }
 
 pub async fn handle_access(
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    State(state): State<AppState>,
+    State(repo): State<Arc<dyn LogRepository>>,
     Json(req): Json<AccessRequest>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<serde_json::Value>, crate::errors::AppError> {
+    validate_resource(&req.resource)?;
 
-    // 🔹 Extract IP
-    let ip = addr.ip().to_string();
-
-    // 🔐 JWT Validation
-    let secret = &state.settings.jwt_secret;
-
-    let (user, role) = validate_token(&req.token, secret);
-
-    // 🕒 Context
-    let hour = Utc::now().hour();
-
-    // 🔥 STEP 1: Frequency (last 5 minutes)
-    let recent_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM logs 
-         WHERE user = ? 
-         AND datetime(created_at) > datetime('now', '-5 minutes')"
+    let secret = jwt_secret()?;
+    let token_data = decode::<Claims>(
+        &req.token,
+        &DecodingKey::from_secret(secret.as_ref()),
+        &Validation::new(Algorithm::HS256),
     )
-    .bind(&user)
-    .fetch_one(&state.pool)
-    .await
-    .unwrap_or(0);
+    .map_err(|_| crate::errors::AppError::Unauthorized)?;
 
-    // ⚠️ STEP 2: Risk Calculation
+    let user = token_data.claims.sub;
+    let hour = Utc::now().hour();
     let mut risk = 0;
 
-    // Identity risk
-    if user == "invalid_user" || user == "expired_user" {
-        risk += 50;
-    }
-
-    // Resource sensitivity
-    if req.resource == "admin" {
+    if req.resource.contains("admin") {
         risk += 40;
     }
 
@@ -107,27 +94,15 @@ pub async fn handle_access(
     // 🧠 Decision
     let decision = if risk >= 60 {
         "DENY"
+    } else if risk >= 30 {
+        "VERIFY"
     } else {
         "ALLOW"
     };
 
-    // 🗂️ Logging
-    sqlx::query(
-        "INSERT INTO logs (id, user, resource, ip, risk_score, decision, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)"
-    )
-    .bind(Uuid::new_v4().to_string())
-    .bind(&user)
-    .bind(&req.resource)
-    .bind(&ip)
-    .bind(risk)
-    .bind(decision)
-    .bind(Utc::now().to_string())
-    .execute(&state.pool)
-    .await
-    .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+    // PERSIST
+    repo.log_access(&user, &req.resource, risk, decision).await?;
 
-    // 📤 Response
     Ok(Json(json!({
         "user": user,
         "role": role,
@@ -139,3 +114,11 @@ pub async fn handle_access(
         "decision": decision
     })))
 }
+
+pub async fn handle_get_logs(
+    State(repo): State<Arc<dyn LogRepository>>,
+) -> Result<Json<Vec<crate::domain::models::LogEntry>>, crate::errors::AppError> {
+    let logs = repo.get_recent_logs(50).await?;
+    Ok(Json(logs))
+}
+
