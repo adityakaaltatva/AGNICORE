@@ -1,62 +1,139 @@
 import { useState } from 'react';
-import { Shield } from 'lucide-react';
+import { LockKeyhole, ShieldCheck, Sparkles } from 'lucide-react';
+import { api } from '../lib/api';
 
 interface LoginProps {
   readonly onLogin: () => void;
 }
 
 export default function Login({ onLogin }: LoginProps) {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('admin');
+  const [password, setPassword] = useState('agnicore_dev_admin_secret');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onLogin();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const ADMIN_UUID = '00000000-0000-0000-0000-000000000000';
+      const response = await api.post<{ token: string }>('/access/token', {
+        user_id: ADMIN_UUID,
+        role: 'admin',
+        admin_secret: password,
+      });
+
+      localStorage.setItem('agnicore_token', response.token);
+      onLogin();
+    } catch (err: any) {
+      setError(err.message || 'Authentication sequence failed');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-red-900 flex items-center justify-center">
-      <div className="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md">
-        <div className="flex items-center justify-center mb-8">
-          <Shield className="w-16 h-16 text-red-600" />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4">
+      {/* Cinematic Background Elements */}
+      <div className="absolute inset-0 bg-[#040913]" />
+      <div className="ambient-orb -top-20 -left-20 h-[500px] w-[500px] bg-sky-500/10 opacity-50" />
+      <div className="ambient-orb -bottom-40 -right-20 h-[600px] w-[600px] bg-rose-500/10 opacity-30" />
+      
+      <div className="relative z-10 w-full max-w-xl">
+        {/* Branding Header */}
+        <div className="mb-12 text-center">
+          <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full glass-inset mb-6">
+            <ShieldCheck className="h-4 w-4 text-sky-400" />
+            <span className="text-[0.65rem] font-bold uppercase tracking-[0.3em] text-sky-400/80">
+              Zero-Trust Protocol Active
+            </span>
+          </div>
+          <h1 className="text-6xl font-bold tracking-tighter text-white mb-4">
+            AGNICORE
+          </h1>
+          <p className="text-slate-400 font-medium tracking-tight text-lg">
+            High-fidelity trust orchestration & security command.
+          </p>
         </div>
-        <h1 className="text-3xl font-bold text-center text-gray-800 mb-2">AGNICORE</h1>
-        <p className="text-center text-gray-600 mb-8">Zero Trust Access Control Platform</p>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">Username</label>
-            <input
-              id="username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-              placeholder="Enter username"
-              required
-            />
+        {/* Modern Login Panel */}
+        <section className="glass-panel-strong p-10 shadow-[0_0_80px_rgba(0,0,0,0.4)]">
+          <div className="mb-10 flex items-center gap-4">
+            <div className="rounded-2xl bg-white/5 p-4 border border-white/10">
+              <LockKeyhole className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-white tracking-tight">Access Gateway</h2>
+              <p className="text-sm text-slate-500 font-medium mt-1">Enter credentials to establish trust.</p>
+            </div>
           </div>
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">Password</label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-              placeholder="Enter password"
-              required
-            />
-          </div>
+          {error && (
+            <div className="mb-8 rounded-2xl bg-rose-500/10 border border-rose-500/20 p-5 text-sm text-rose-300 font-medium animate-shake">
+              {error}
+            </div>
+          )}
 
-          <button
-            type="submit"
-            className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded-lg transition"
-          >
-            Login
-          </button>
-        </form>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-[0.65rem] font-bold uppercase tracking-widest text-slate-500 ml-1">
+                Operator Identity
+              </label>
+              <input
+                type="text"
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                className="field-shell w-full !bg-black/20"
+                placeholder="Username"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[0.65rem] font-bold uppercase tracking-widest text-slate-500 ml-1">
+                Security Key
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                className="field-shell w-full !bg-black/20"
+                placeholder="••••••••••••"
+                required
+              />
+            </div>
+
+            <div className="pt-4">
+              <button 
+                type="submit" 
+                className="button-primary w-full disabled:opacity-50 h-16 text-lg"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <div className="flex items-center gap-3">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                    <span>Verifying Identity...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span>Initialize Session</span>
+                    <Sparkles className="h-5 w-5 opacity-50" />
+                  </div>
+                )}
+              </button>
+            </div>
+          </form>
+
+          <div className="mt-10 pt-8 border-t border-white/5">
+            <div className="flex justify-between items-center opacity-40 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-500">
+              <span className="text-[0.6rem] font-bold uppercase tracking-widest text-slate-400">Contextual Audit</span>
+              <span className="text-[0.6rem] font-bold uppercase tracking-widest text-slate-400">Threat Monitoring</span>
+              <span className="text-[0.6rem] font-bold uppercase tracking-widest text-slate-400">Policy Guard</span>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   );

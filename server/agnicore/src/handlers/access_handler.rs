@@ -1,141 +1,94 @@
-use axum::extract::{Json, State, ConnectInfo};
+use std::sync::Arc;
+
+use axum::extract::{Json, State};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm};
-use chrono::{Utc, Timelike};
-use uuid::Uuid;
-use std::net::SocketAddr;
-
-use crate::app::AppState;
-use crate::errors::app_error::AppError;
+use crate::repository::log_repository::LogRepository;
+use crate::services::auth_service::{AuthService, DefaultAuthService};
+use crate::services::risk_service::{RiskService, DefaultRiskService};
+use crate::services::policy_service::{PolicyService, DefaultPolicyService};
+use crate::services::context_service::{ContextService, DefaultContextService};
+use crate::domain::AccessRequest as DomainAccessRequest;
 
 #[derive(Deserialize)]
 pub struct AccessRequest {
     pub token: String,
     pub resource: String,
+    pub action: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct Claims {
-    sub: String,
-    role: String,   // 🔥 ADD THIS
-    exp: usize,
-}
+fn validate_resource(resource: &str) -> Result<(), crate::errors::AppError> {
+    let trimmed = resource.trim();
+    let is_valid = !trimmed.is_empty()
+        && trimmed.len() <= 128
+        && trimmed
+            .chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '/' | '_' | '-' | '.' | ' '));
 
-pub fn validate_token(token: &str, secret: &str) -> (String, String) {
-    match decode::<Claims>(
-        token,
-        &DecodingKey::from_secret(secret.as_ref()),
-        &Validation::new(Algorithm::HS256),
-    ) {
-        Ok(data) => {
-            let now = Utc::now().timestamp() as usize;
-            if data.claims.exp < now {
-                ("expired_user".to_string(), "unknown".to_string())
-            } else {
-                (data.claims.sub, data.claims.role)
-            }
-        }
-        Err(_) => ("invalid_user".to_string(), "unknown".to_string()),
+    if is_valid {
+        Ok(())
+    } else {
+        Err(crate::errors::AppError::BadRequest(
+            "resource must be 1-128 chars and only contain letters, numbers, /, _, -, or .".to_string(),
+        ))
     }
 }
 
 pub async fn handle_access(
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    State(state): State<AppState>,
+    State(repo): State<Arc<dyn LogRepository>>,
     Json(req): Json<AccessRequest>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<serde_json::Value>, crate::errors::AppError> {
+    validate_resource(&req.resource)?;
 
-    // 🔹 Extract IP
-    let ip = addr.ip().to_string();
+    // Approach B: Direct Instantiation
+    let auth_service = DefaultAuthService;
+    let risk_service = DefaultRiskService;
+    let policy_service = DefaultPolicyService;
+    let context_service = DefaultContextService;
 
-    // 🔐 JWT Validation
-    let secret = &state.settings.jwt_secret;
+    // 1. Authenticate
+    let user = auth_service.authenticate(&req.token).await?;
 
-    let (user, role) = validate_token(&req.token, secret);
+    // 2. Prepare domain request
+    let mut domain_req = DomainAccessRequest {
+        user_id: user.id,
+        resource: req.resource.clone(),
+        action: req.action.unwrap_or_else(|| "read".to_string()),
+    };
 
-    // 🕒 Context
-    let hour = Utc::now().hour();
+    // 3. Enrich context
+    context_service.enrich_context(&mut domain_req).await?;
 
-    // 🔥 STEP 1: Frequency (last 5 minutes)
-    let recent_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM logs 
-         WHERE user = ? 
-         AND datetime(created_at) > datetime('now', '-5 minutes')"
-    )
-    .bind(&user)
-    .fetch_one(&state.pool)
-    .await
-    .unwrap_or(0);
+    // 4. Evaluate Policy
+    let risk_score = risk_service.calculate_risk(&domain_req).await?;
+    let decision_res = policy_service.evaluate_policy(&domain_req).await?;
 
-    // ⚠️ STEP 2: Risk Calculation
-    let mut risk = 0;
-
-    // Identity risk
-    if user == "invalid_user" || user == "expired_user" {
-        risk += 50;
-    }
-
-    // Resource sensitivity
-    if req.resource == "admin" {
-        risk += 40;
-    }
-
-    // Time anomaly
-    if hour < 6 || hour > 22 {
-        risk += 20;
-    }
-
-    // IP-based risk
-    if ip.starts_with("192.168") || ip.starts_with("10.") || ip == "127.0.0.1" {
-        risk += 5;
-    } else {
-        risk += 15;
-    }
-
-    // 🔥 Behavioral risk (frequency)
-    if recent_count > 5 {
-        risk += 20;
-    }
-    if recent_count > 10 {
-        risk += 30;
-    }
-    if recent_count > 20 {
-        risk += 50;
-    }
-
-    // 🧠 Decision
-    let decision = if risk >= 60 {
+    // Use the risk score from risk_service if it's more dynamic
+    let final_risk = risk_score.max(decision_res.risk_score);
+    let final_decision = if final_risk >= 60 {
         "DENY"
+    } else if final_risk >= 30 {
+        "VERIFY"
     } else {
         "ALLOW"
     };
 
-    // 🗂️ Logging
-    sqlx::query(
-        "INSERT INTO logs (id, user, resource, ip, risk_score, decision, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)"
-    )
-    .bind(Uuid::new_v4().to_string())
-    .bind(&user)
-    .bind(&req.resource)
-    .bind(&ip)
-    .bind(risk)
-    .bind(decision)
-    .bind(Utc::now().to_string())
-    .execute(&state.pool)
-    .await
-    .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+    // PERSIST
+    repo.log_access(&user.id.to_string(), &req.resource, final_risk, final_decision).await?;
 
-    // 📤 Response
     Ok(Json(json!({
-        "user": user,
-        "role": role,
+        "user": user.username,
+        "user_id": user.id,
         "resource": req.resource,
-        "ip": ip,
-        "hour": hour,
-        "request_count": recent_count,
-        "risk_score": risk,
-        "decision": decision
+        "risk_score": final_risk,
+        "decision": final_decision,
+        "reason": decision_res.reason
     })))
+}
+
+pub async fn handle_get_logs(
+    State(repo): State<Arc<dyn LogRepository>>,
+) -> Result<Json<Vec<crate::domain::models::LogEntry>>, crate::errors::AppError> {
+    let logs = repo.get_recent_logs(50).await?;
+    Ok(Json(logs))
 }

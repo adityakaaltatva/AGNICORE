@@ -16,3 +16,13 @@ pub struct AccessDecision {
     pub reason: String,
     pub mfa_required: bool,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct LogEntry {
+    pub id: String,
+    pub user: String,
+    pub resource: String,
+    pub risk_score: i32,
+    pub decision: String,
+    pub created_at: String,
+}

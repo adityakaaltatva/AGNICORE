@@ -24,9 +24,11 @@ anyhow = "1.0"
 config = "0.14"
 dotenvy = "0.15"
 chrono = "0.4.44"
-jsonwebtoken = "10.3.0"
-sqlx = { version = "0.8.6", features = ["runtime-tokio", "sqlite"] }
+jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }
+sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "sqlite", "macros", "derive"] }
+tower-http = { version = "0.6", features = ["cors", "trace"] }
 oath = "0.1"
+base32 = "0.4"
 rand = "0.8"
 
 [profile.release]
@@ -35,6 +37,3 @@ strip = "symbols"
 codegen-units = 1
 lto = true
 panic = "abort"
-oath = "0.14"
-base32 = "0.4"
-rand = "0.8"

@@ -1,287 +1,275 @@
-import { useState, useMemo } from 'react';
-import { AccessRequest, Decision } from '../types';
-import { Search, ChevronUp, ChevronDown, Eye, X } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ChevronDown, ChevronUp, Eye, Search, X } from 'lucide-react';
+import { AccessRequest } from '../types';
+import { getDecisionMeta, getRiskMeta } from '../lib/ui';
 
 interface RequestsTableProps {
-  requests: AccessRequest[];
+  readonly requests: AccessRequest[];
 }
 
 type SortField = 'riskScore' | 'time' | null;
 type SortOrder = 'asc' | 'desc';
 type RiskLevel = 'all' | 'low' | 'medium' | 'high';
 
-const getRiskLevel = (score: number): RiskLevel => {
+const riskFilters: RiskLevel[] = ['all', 'low', 'medium', 'high'];
+
+const getRiskLevel = (score: number): Exclude<RiskLevel, 'all'> => {
   if (score <= 30) return 'low';
   if (score <= 60) return 'medium';
   return 'high';
 };
 
-const getRiskColor = (score: number) => {
-  const level = getRiskLevel(score);
-  switch (level) {
-    case 'low':
-      return 'bg-green-100 text-green-800';
-    case 'medium':
-      return 'bg-yellow-100 text-yellow-800';
-    case 'high':
-      return 'bg-red-100 text-red-800';
-  }
-};
-
-const getDecisionColor = (decision: Decision) => {
-  switch (decision) {
-    case 'ALLOW':
-      return 'bg-green-100 text-green-800';
-    case 'VERIFY':
-      return 'bg-yellow-100 text-yellow-800';
-    case 'DENY':
-      return 'bg-red-100 text-red-800';
-  }
-};
-
-const getRiskFactors = (score: number, device: string): string[] => {
+const getRiskFactors = (request: AccessRequest): string[] => {
   const factors: string[] = [];
-  if (score > 70) factors.push('High risk score');
-  if (device === 'Unknown') factors.push('Unknown device');
-  if (score > 50) factors.push('Untrusted activity pattern');
-  if (score > 60) factors.push('High request frequency');
-  return factors.length > 0 ? factors : ['Normal activity'];
+
+  if (request.device === 'Unknown') factors.push('Unknown endpoint posture');
+  if (request.location === 'Unknown') factors.push('Location confidence unavailable');
+  if (request.action === 'write' || request.action === 'approve') factors.push('Mutation-capable action');
+  if (request.riskScore > 60) factors.push('Request exceeded deny threshold');
+
+  return factors.length > 0 ? factors : ['Baseline-aligned behavior'];
 };
 
 export default function RequestsTable({ requests }: RequestsTableProps) {
   const [search, setSearch] = useState('');
   const [riskFilter, setRiskFilter] = useState<RiskLevel>('all');
-  const [sortField, setSortField] = useState<SortField>(null);
-  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+  const [sortField, setSortField] = useState<SortField>('riskScore');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [selectedRequest, setSelectedRequest] = useState<AccessRequest | null>(null);
 
   const filteredAndSorted = useMemo(() => {
-    let filtered = requests.filter((req) => {
+    const filtered = requests.filter((request) => {
+      const query = search.toLowerCase();
       const matchesSearch =
-        req.user.toLowerCase().includes(search.toLowerCase()) ||
-        req.ip.toLowerCase().includes(search.toLowerCase()) ||
-        req.device.toLowerCase().includes(search.toLowerCase());
-
+        request.user.toLowerCase().includes(query) ||
+        request.ip.toLowerCase().includes(query) ||
+        request.device.toLowerCase().includes(query) ||
+        request.resource.toLowerCase().includes(query);
       const matchesRisk =
-        riskFilter === 'all' || getRiskLevel(req.riskScore) === riskFilter;
+        riskFilter === 'all' || getRiskLevel(request.riskScore) === riskFilter;
 
       return matchesSearch && matchesRisk;
     });
 
-    if (sortField) {
-      filtered.sort((a, b) => {
-        let aVal: number | string;
-        let bVal: number | string;
-
-        if (sortField === 'riskScore') {
-          aVal = a.riskScore;
-          bVal = b.riskScore;
-        } else {
-          aVal = a.time;
-          bVal = b.time;
-        }
-
-        if (sortOrder === 'asc') {
-          return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
-        } else {
-          return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
-        }
-      });
+    if (!sortField) {
+      return filtered;
     }
 
-    return filtered;
+    return [...filtered].sort((left, right) => {
+      const leftValue = sortField === 'riskScore' ? left.riskScore : left.time;
+      const rightValue = sortField === 'riskScore' ? right.riskScore : right.time;
+
+      if (sortOrder === 'asc') {
+        return leftValue < rightValue ? -1 : leftValue > rightValue ? 1 : 0;
+      }
+
+      return leftValue > rightValue ? -1 : leftValue < rightValue ? 1 : 0;
+    });
   }, [requests, search, riskFilter, sortField, sortOrder]);
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortOrder('asc');
+      setSortOrder((current) => (current === 'asc' ? 'desc' : 'asc'));
+      return;
     }
+
+    setSortField(field);
+    setSortOrder('desc');
   };
 
-  const SortIcon = ({ field }: { field: SortField }) => {
+  const renderSortIcon = (field: SortField) => {
     if (sortField !== field) return null;
     return sortOrder === 'asc' ? (
-      <ChevronUp className="w-4 h-4 inline ml-1" />
+      <ChevronUp className="h-4 w-4" />
     ) : (
-      <ChevronDown className="w-4 h-4 inline ml-1" />
+      <ChevronDown className="h-4 w-4" />
     );
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-200 space-y-4">
-        <h2 className="text-lg font-semibold text-gray-800">Recent Access Requests</h2>
+    <section className="glass-panel-strong section-shell relative overflow-hidden">
+      <div className="ambient-orb -left-12 top-0 h-48 w-48 bg-white/5 opacity-30" />
+      <div className="relative mb-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="eyebrow">Recent Requests</p>
+          <h2 className="panel-title text-2xl">Live analyst feed</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-300">
+            Search, sort, and inspect requests to understand what pushed each decision.
+          </p>
+        </div>
 
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search className="w-5 h-5 absolute left-3 top-2.5 text-gray-400" />
+        <div className="flex flex-col gap-3 lg:min-w-[420px]">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
             <input
               type="text"
-              placeholder="Search by user, IP, or device..."
+              placeholder="Search actor or resource"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm"
+              onChange={(event) => setSearch(event.target.value)}
+              className="field-shell w-full pl-11"
             />
           </div>
-
-          <div className="flex gap-2">
-            {(['all', 'low', 'medium', 'high'] as const).map((level) => (
+          <div className="flex flex-wrap gap-2">
+            {riskFilters.map((level) => (
               <button
                 key={level}
                 onClick={() => setRiskFilter(level)}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
+                className={`rounded-full px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
                   riskFilter === level
-                    ? 'bg-red-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-white/14 text-white'
+                    : 'border border-white/10 bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
                 }`}
               >
-                {level.charAt(0).toUpperCase() + level.slice(1)}
+                {level}
               </button>
             ))}
           </div>
         </div>
       </div>
 
-      {filteredAndSorted.length === 0 ? (
-        <div className="px-6 py-12 text-center">
-          <p className="text-gray-500 text-sm">No access requests found</p>
-        </div>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">IP</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Device</th>
-                <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:text-gray-700"
+      <div className="relative overflow-x-auto scrollbar-subtle">
+        <table className="min-w-full border-separate border-spacing-y-3">
+          <thead>
+            <tr className="text-left text-xs uppercase tracking-[0.24em] text-slate-500">
+              <th className="px-4 py-2 font-medium">Identity</th>
+              <th className="px-4 py-2 font-medium">Resource</th>
+              <th className="px-4 py-2 font-medium">Context</th>
+              <th className="px-4 py-2 font-medium">
+                <button
                   onClick={() => toggleSort('riskScore')}
+                  className="flex items-center gap-1 text-left"
                 >
-                  Risk Score <SortIcon field="riskScore" />
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Decision</th>
-                <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:text-gray-700"
+                  Risk
+                  {renderSortIcon('riskScore')}
+                </button>
+              </th>
+              <th className="px-4 py-2 font-medium">Decision</th>
+              <th className="px-4 py-2 font-medium">
+                <button
                   onClick={() => toggleSort('time')}
+                  className="flex items-center gap-1 text-left"
                 >
-                  Time <SortIcon field="time" />
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {filteredAndSorted.map((request) => (
-                <tr
-                  key={request.id}
-                  className={`hover:bg-gray-50 transition ${
-                    request.riskScore > 70 ? 'bg-red-50' : ''
-                  }`}
-                >
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">{request.user}</td>
-                  <td className="px-6 py-4 text-sm text-gray-500 font-mono">{request.ip}</td>
-                  <td className="px-6 py-4 text-sm text-gray-500">{request.device}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getRiskColor(request.riskScore)}`}>
-                      {request.riskScore}
-                    </span>
+                  Time
+                  {renderSortIcon('time')}
+                </button>
+              </th>
+              <th className="px-4 py-2 font-medium text-center">Inspect</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredAndSorted.map((request) => {
+              const riskMeta = getRiskMeta(request.riskScore);
+              const decisionMeta = getDecisionMeta(request.decision);
+              const DecisionIcon = decisionMeta.icon;
+
+              return (
+                <tr key={request.id} className="glass-inset transition-colors duration-200 hover:bg-white/5">
+                  <td className="rounded-l-[22px] px-4 py-4 align-top">
+                    <div className="text-sm font-medium text-white">{request.user}</div>
+                    <div className="mt-2 text-xs font-mono text-slate-400">{request.ip}</div>
                   </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getDecisionColor(request.decision)}`}>
+                  <td className="px-4 py-4 align-top text-sm text-slate-300">
+                    <div className="font-medium text-white">{request.resource}</div>
+                    <div className="mt-2 text-xs uppercase tracking-[0.24em] text-slate-500">
+                      {request.action}
+                    </div>
+                  </td>
+                  <td className="px-4 py-4 align-top text-sm text-slate-300">
+                    <div>{request.device}</div>
+                    <div className="mt-2 text-xs text-slate-500">{request.location}</div>
+                  </td>
+                  <td className="px-4 py-4 align-top">
+                    <div className={`decision-badge ${riskMeta.toneClassName}`}>
+                      {request.riskScore} / {riskMeta.label}
+                    </div>
+                  </td>
+                  <td className="px-4 py-4 align-top">
+                    <div className={`decision-badge ${decisionMeta.badgeClassName}`}>
+                      <DecisionIcon className="h-4 w-4" />
                       {request.decision}
-                    </span>
+                    </div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">{request.time}</td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-4 align-top text-sm text-slate-300">{request.time}</td>
+                  <td className="rounded-r-[22px] px-4 py-4 align-top text-center">
                     <button
                       onClick={() => setSelectedRequest(request)}
-                      className="text-red-600 hover:text-red-800 transition"
+                      className="inline-flex rounded-2xl border border-white/10 bg-white/5 p-3 text-slate-200 transition hover:bg-white/10 hover:text-white"
                     >
-                      <Eye className="w-5 h-5" />
+                      <Eye className="h-4 w-4" />
                     </button>
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {filteredAndSorted.length === 0 ? (
+        <div className="relative mt-4 rounded-[22px] border border-white/8 bg-black/10 px-4 py-8 text-center text-sm text-slate-400">
+          No requests matched the current filters.
         </div>
-      )}
+      ) : null}
 
-      {selectedRequest && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-800">Request Details</h3>
+      {selectedRequest ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-md">
+          <div className="glass-panel-strong w-full max-w-2xl rounded-[30px] p-6 shadow-2xl">
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <p className="eyebrow">Request Detail</p>
+                <h3 className="mt-2 text-2xl font-semibold tracking-tight text-white">
+                  {selectedRequest.user}
+                </h3>
+              </div>
               <button
                 onClick={() => setSelectedRequest(null)}
-                className="text-gray-400 hover:text-gray-600"
+                className="button-secondary !rounded-full !p-3"
               >
-                <X className="w-5 h-5" />
+                <X className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="px-6 py-4 space-y-4">
-              <div>
-                <p className="text-xs font-medium text-gray-500 uppercase">User</p>
-                <p className="text-sm text-gray-900 font-medium">{selectedRequest.user}</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="glass-inset rounded-[24px] p-4">
+                <p className="eyebrow">Identity</p>
+                <p className="mt-3 text-lg font-semibold text-white">{selectedRequest.user}</p>
+                <p className="mt-2 text-sm font-mono text-slate-400">{selectedRequest.ip}</p>
               </div>
-
-              <div>
-                <p className="text-xs font-medium text-gray-500 uppercase">IP Address</p>
-                <p className="text-sm text-gray-900 font-mono">{selectedRequest.ip}</p>
+              <div className="glass-inset rounded-[24px] p-4">
+                <p className="eyebrow">Request shape</p>
+                <p className="mt-3 text-lg font-semibold text-white">{selectedRequest.resource}</p>
+                <p className="mt-2 text-sm text-slate-300">{selectedRequest.action}</p>
               </div>
-
-              <div>
-                <p className="text-xs font-medium text-gray-500 uppercase">Device</p>
-                <p className="text-sm text-gray-900">{selectedRequest.device}</p>
+              <div className="glass-inset rounded-[24px] p-4">
+                <p className="eyebrow">Risk snapshot</p>
+                <div className={`mt-3 decision-badge ${getRiskMeta(selectedRequest.riskScore).toneClassName}`}>
+                  {selectedRequest.riskScore} / {getRiskMeta(selectedRequest.riskScore).label}
+                </div>
               </div>
-
-              <div>
-                <p className="text-xs font-medium text-gray-500 uppercase">Risk Score</p>
-                <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold mt-1 ${getRiskColor(selectedRequest.riskScore)}`}>
-                  {selectedRequest.riskScore}
-                </span>
-              </div>
-
-              <div>
-                <p className="text-xs font-medium text-gray-500 uppercase">Decision</p>
-                <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold mt-1 ${getDecisionColor(selectedRequest.decision)}`}>
+              <div className="glass-inset rounded-[24px] p-4">
+                <p className="eyebrow">Decision</p>
+                <div className={`mt-3 decision-badge ${getDecisionMeta(selectedRequest.decision).badgeClassName}`}>
                   {selectedRequest.decision}
-                </span>
-              </div>
-
-              <div>
-                <p className="text-xs font-medium text-gray-500 uppercase">Time</p>
-                <p className="text-sm text-gray-900">{selectedRequest.time}</p>
-              </div>
-
-              <div>
-                <p className="text-xs font-medium text-gray-500 uppercase mb-2">Risk Factors</p>
-                <ul className="space-y-1">
-                  {getRiskFactors(selectedRequest.riskScore, selectedRequest.device).map((factor, idx) => (
-                    <li key={idx} className="text-sm text-gray-600 flex items-start">
-                      <span className="text-red-500 mr-2">•</span>
-                      {factor}
-                    </li>
-                  ))}
-                </ul>
+                </div>
               </div>
             </div>
 
-            <div className="px-6 py-4 border-t border-gray-200">
-              <button
-                onClick={() => setSelectedRequest(null)}
-                className="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium rounded-lg transition"
-              >
-                Close
-              </button>
+            <div className="mt-4 glass-inset rounded-[24px] p-4">
+              <p className="eyebrow">Primary factors</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {getRiskFactors(selectedRequest).map((factor) => (
+                  <span
+                    key={factor}
+                    className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium uppercase tracking-[0.16em] text-slate-200"
+                  >
+                    {factor}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
         </div>
-      )}
-    </div>
+      ) : null}
+    </section>
   );
 }

@@ -21,8 +21,6 @@ pub struct DefaultRiskService;
 #[async_trait]
 impl RiskService for DefaultRiskService {
     async fn calculate_risk(&self, request: &AccessRequest) -> Result<i32, crate::errors::AppError> {
-        // TODO: Implement actual risk calculation
-        // For now, simple heuristic
         let mut risk = 0;
         if request.resource.contains("admin") {
             risk += 40;
@@ -30,7 +28,14 @@ impl RiskService for DefaultRiskService {
         if request.action == "write" {
             risk += 20;
         }
-        Ok(risk)
+
+        // Add risk based on time of day
+        let hour = crate::utils::time::current_hour();
+        if hour < 6 || hour > 22 {
+            risk += 20;
+        }
+
+        Ok(risk.min(100))
     }
 }
 
