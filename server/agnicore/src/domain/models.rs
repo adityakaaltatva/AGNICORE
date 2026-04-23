@@ -11,6 +11,8 @@ pub struct AccessRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccessDecision {
     pub allowed: bool,
+    pub decision: String,      // ALLOW / CHALLENGE / DENY
     pub risk_score: i32,
     pub reason: String,
+    pub mfa_required: bool,
 }

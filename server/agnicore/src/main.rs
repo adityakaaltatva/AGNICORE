@@ -1,9 +1,11 @@
 mod app;
 mod config;
 mod db;
+mod domain;
 mod errors;
 mod handlers;
 mod routes;
+mod services;
 
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
