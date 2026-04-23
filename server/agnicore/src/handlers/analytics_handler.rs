@@ -1,49 +1,41 @@
 use axum::{extract::State, Json};
 use serde_json::json;
+use std::sync::Arc;
 
-use crate::app::AppState;
 use crate::errors::app_error::AppError;
+use crate::repository::log_repository::LogRepository;
 
 pub async fn get_analytics(
-    State(state): State<AppState>,
+    State(repo): State<Arc<dyn LogRepository>>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    // 🔹 Get recent logs
+    let logs = repo.get_recent_logs(100).await.unwrap_or_default();
 
-    // 🔹 Total requests
-    let total_requests: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM logs"
-    )
-    .fetch_one(&state.pool)
-    .await
-    .unwrap_or(0);
+    // 🔹 Calculate analytics from logs
+    let total_requests = logs.len() as i64;
+    let avg_risk: f64 = if total_requests > 0 {
+        logs.iter().map(|l| l.risk_score as f64).sum::<f64>() / total_requests as f64
+    } else {
+        0.0
+    };
 
-    // 🔹 Average risk
-    let avg_risk: f64 = sqlx::query_scalar(
-        "SELECT AVG(risk_score) FROM logs"
-    )
-    .fetch_one(&state.pool)
-    .await
-    .unwrap_or(0.0);
+    let denied_count = logs.iter().filter(|l| l.decision == "DENY").count() as i64;
 
-    // 🔹 Denied requests
-    let denied_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM logs WHERE decision = 'DENY'"
-    )
-    .fetch_one(&state.pool)
-    .await
-    .unwrap_or(0);
+    // 🔹 Group by user to find risky users
+    let mut user_risk_map: std::collections::HashMap<String, (i32, i64)> = std::collections::HashMap::new();
+    for log in &logs {
+        let entry = user_risk_map.entry(log.user.clone()).or_insert((0, 0));
+        entry.0 = (entry.0 + log.risk_score).min(100);
+        entry.1 += 1;
+    }
 
-    // 🔹 Top risky users
-    let risky_users = sqlx::query_as::<_, (String, i64)>(
-        "SELECT user, COUNT(*) as count 
-         FROM logs 
-         WHERE risk_score > 50 
-         GROUP BY user 
-         ORDER BY count DESC 
-         LIMIT 5"
-    )
-    .fetch_all(&state.pool)
-    .await
-    .unwrap_or(vec![]);
+    let mut risky_users: Vec<(String, i64)> = user_risk_map
+        .into_iter()
+        .filter(|(_, (risk, _))| *risk > 50)
+        .map(|(user, (_, count))| (user, count))
+        .collect();
+    risky_users.sort_by(|a, b| b.1.cmp(&a.1));
+    risky_users.truncate(5);
 
     Ok(Json(json!({
         "total_requests": total_requests,

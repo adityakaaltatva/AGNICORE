@@ -9,6 +9,7 @@ repository = "https://github.com/your-org/AGNICORE"
 readme = "README.md"
 keywords = ["rust", "backend", "api", "axum"]
 categories = ["network-programming", "web-programming"]
+default-run = "agnicore"
 
 [dependencies]
 axum = "0.8"

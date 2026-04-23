@@ -11,6 +11,16 @@ import RequestsTable from '../components/RequestsTable';
 import { api } from '../lib/api';
 import { DashboardMetrics, AccessRequest } from '../types';
 
+const getSeverity = (score: number): 'low' | 'medium' | 'high' => {
+  if (score > 60) {
+    return 'high';
+  }
+  if (score > 30) {
+    return 'medium';
+  }
+  return 'low';
+};
+
 export default function Dashboard() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [requests, setRequests] = useState<AccessRequest[]>([]);
@@ -26,20 +36,25 @@ export default function Dashboard() {
         ]);
         
         setMetrics(metricsData);
-        setRequests(logsData.map(log => ({
-          id: log.id,
-          user: log.user,
-          ip: 'Dynamic',
-          device: 'Dynamic',
-          riskScore: log.risk_score,
-          decision: log.decision,
-          time: new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          resource: log.resource,
-          action: 'access',
-          location: 'Remote',
-          severity: log.risk_score > 60 ? 'high' : log.risk_score > 30 ? 'medium' : 'low',
-          trustLabel: log.decision === 'DENY' ? 'Security Violation' : 'Verified Access',
-        })));
+        setRequests(logsData.map(log => {
+          const getSeverity = (score: number) => {
+            return score > 60 ? 'high' : score > 30 ? 'medium' : 'low';
+          };
+          return {
+            id: log.id,
+            user: log.user,
+            ip: 'Dynamic',
+            device: 'Dynamic',
+            riskScore: log.risk_score,
+            decision: log.decision,
+            time: new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            resource: log.resource,
+            action: 'access',
+            location: 'Remote',
+            severity: getSeverity(log.risk_score),
+            trustLabel: log.decision === 'DENY' ? 'Security Violation' : 'Verified Access',
+          };
+        }));
         setError(null);
       } catch (err: any) {
         console.error('Failed to fetch dashboard data:', err);
@@ -73,7 +88,7 @@ export default function Dashboard() {
           <h2 className="text-xl font-bold text-white mb-2">Sync Error</h2>
           <p className="text-slate-400 mb-6">{error || 'Metrics unavailable'}</p>
           <button 
-            onClick={() => window.location.reload()}
+            onClick={() => globalThis.location.reload()}
             className="button-primary px-8"
           >
             Retry Connection
@@ -102,7 +117,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           title="Risk Level"
-          value={`${metrics.risk_score}%`}
+          value={`${metrics.riskScore}%`}
           subtitle="Aggregate threat score"
           icon={AlertTriangle}
           tone="danger"
@@ -116,14 +131,14 @@ export default function Dashboard() {
         />
         <MetricCard
           title="Daily Traffic"
-          value={metrics.requests_today}
+          value={metrics.requestsToday}
           subtitle="Monitored requests"
           icon={Activity}
           tone="info"
         />
         <MetricCard
           title="Integrity Index"
-          value={metrics.threat_index}
+          value={metrics.threatIndex}
           subtitle="Posture stability"
           icon={ShieldCheck}
           tone="success"

@@ -10,6 +10,7 @@ mod db;
 
 use std::sync::Arc;
 use std::net::SocketAddr;
+use std::env;
 use tokio::net::TcpListener;
 use axum::{routing::get, Router};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -61,7 +62,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .layer(cors);
 
     // 🔹 Bind server
-    let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
+    let port = env::var("PORT").unwrap_or_else(|_| "8080".to_string()).parse::<u16>().unwrap_or(8080);
+    let addr = SocketAddr::from(([127, 0, 0, 1], port));
     tracing::info!("listening on {}", addr);
 
     let listener = TcpListener::bind(addr).await?;

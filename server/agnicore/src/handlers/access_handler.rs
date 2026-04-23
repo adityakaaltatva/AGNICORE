@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use axum::extract::{Json, State};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::json;
 use crate::repository::log_repository::LogRepository;
 use crate::services::auth_service::{AuthService, DefaultAuthService};
@@ -61,7 +61,7 @@ pub async fn handle_access(
 
     // 4. Evaluate Policy
     let risk_score = risk_service.calculate_risk(&domain_req).await?;
-    let decision_res = policy_service.evaluate_policy(&domain_req).await?;
+    let decision_res = policy_service.evaluate_policy(&domain_req, risk_score).await?;
 
     // Use the risk score from risk_service if it's more dynamic
     let final_risk = risk_score.max(decision_res.risk_score);
