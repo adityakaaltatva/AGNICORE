@@ -48,7 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let log_repo = Arc::new(repository::log_repository::SqliteLogRepository::new(pool.clone()));
     
     let cors = tower_http::cors::CorsLayer::new()
-        .allow_origin(tower_http::cors::Any)
+        .allow_origin("http://localhost:5173".parse::<axum::http::HeaderValue>().unwrap())
         .allow_methods([axum::http::Method::GET, axum::http::Method::POST])
         .allow_headers([
             axum::http::HeaderName::from_static("content-type"),

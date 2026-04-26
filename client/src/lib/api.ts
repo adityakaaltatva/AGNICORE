@@ -1,4 +1,4 @@
-const BASE_URL = 'http://127.0.0.1:8080/api';
+const BASE_URL = 'http://localhost:8080/api';
 
 export async function apiRequest<T>(
   path: string,
