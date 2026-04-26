@@ -9,12 +9,15 @@ pub struct User {
     pub id: Uuid,
     pub username: String,
     pub role: String,
+    pub status: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: String,
+    pub username: String,
     pub role: String,
+    pub status: String,
     pub exp: usize,
 }
 
@@ -38,10 +41,16 @@ impl AuthService for DefaultAuthService {
         )
         .map_err(|_| crate::errors::AppError::Unauthorized)?;
 
+        // Check if user status is active
+        if token_data.claims.status != "active" {
+            return Err(crate::errors::AppError::Forbidden);
+        }
+
         Ok(User {
             id: Uuid::parse_str(&token_data.claims.sub).map_err(|_| crate::errors::AppError::Unauthorized)?,
-            username: "authenticated_user".to_string(),
+            username: token_data.claims.username,
             role: token_data.claims.role,
+            status: token_data.claims.status,
         })
     }
 

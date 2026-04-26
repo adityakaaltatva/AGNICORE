@@ -31,7 +31,7 @@ export const api = {
   get: <T>(path: string, options?: RequestInit) => 
     apiRequest<T>(path, { ...options, method: 'GET' }),
   
-  post: <T>(path: string, body: any, options?: RequestInit) => 
+  post: <T>(path: string, body: unknown, options?: RequestInit) => 
     apiRequest<T>(path, { 
       ...options, 
       method: 'POST', 

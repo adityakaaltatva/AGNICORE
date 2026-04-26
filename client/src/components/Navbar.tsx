@@ -5,9 +5,10 @@ interface NavbarProps {
   readonly currentPage: string;
   readonly onLogout: () => void;
   readonly onOpenMenu: () => void;
+  readonly user?: { username: string; role: string } | null;
 }
 
-export default function Navbar({ currentPage, onLogout, onOpenMenu }: NavbarProps) {
+export default function Navbar({ currentPage, onLogout, onOpenMenu, user }: NavbarProps) {
   return (
     <header className="page-grid pb-0">
       <div className="glass-panel-strong section-shell relative overflow-hidden">
@@ -45,8 +46,8 @@ export default function Navbar({ currentPage, onLogout, onOpenMenu }: NavbarProp
               <p className="mt-1 text-xs text-slate-400">Threat surface monitored in real time</p>
             </div>
             <div className="glass-inset rounded-[22px] px-4 py-3">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Analyst</p>
-              <p className="mt-1 text-sm font-medium text-white">admin@agnicore.io</p>
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{user?.role === 'admin' ? 'Administrator' : 'Analyst'}</p>
+              <p className="mt-1 text-sm font-medium text-white">{user?.username || 'Unknown'}</p>
             </div>
             <button onClick={onLogout} className="button-secondary">
               <LogOut className="h-4 w-4" />

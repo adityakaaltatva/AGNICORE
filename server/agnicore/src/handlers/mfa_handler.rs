@@ -8,8 +8,9 @@ pub async fn setup_mfa() -> Json<serde_json::Value> {
     let secret = mfa_service::generate_secret();
     let url = mfa_service::generate_otpauth_url("user123", &secret);
 
+    // SECURITY: Never return the raw secret in production.
+    // The QR URL contains the secret and is the secure delivery mechanism.
     Json(json!({
-        "secret": secret,
         "qr_url": url
     }))
 }

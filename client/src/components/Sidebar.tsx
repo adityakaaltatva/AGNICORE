@@ -1,10 +1,10 @@
-import { LayoutDashboard, TestTube, FileText } from 'lucide-react';
-import { formatPageTitle } from '../lib/ui';
+import { LayoutDashboard, TestTube, FileText, Users } from 'lucide-react';
 
 interface SidebarProps {
   readonly currentPage: string;
   readonly onNavigate: (page: string) => void;
   readonly onClose?: () => void;
+  readonly isAdmin: boolean;
 }
 
 const menuItems = [
@@ -13,7 +13,13 @@ const menuItems = [
   { id: 'logs', label: 'Audit Trail', icon: FileText, sub: 'Forensic Review' },
 ];
 
-export default function Sidebar({ currentPage, onNavigate, onClose }: SidebarProps) {
+const adminItems = [
+  { id: 'users', label: 'User Management', icon: Users, sub: 'Admin Panel' },
+];
+
+export default function Sidebar({ currentPage, onNavigate, onClose, isAdmin }: SidebarProps) {
+  const allItems = isAdmin ? [...menuItems, ...adminItems] : menuItems;
+
   return (
     <aside className="glass-panel-strong flex h-full w-full max-w-[280px] flex-col rounded-[32px] p-6 shadow-2xl">
       <div className="mb-10 p-2">
@@ -24,7 +30,7 @@ export default function Sidebar({ currentPage, onNavigate, onClose }: SidebarPro
       </div>
 
       <nav className="space-y-4">
-        {menuItems.map((item) => {
+        {allItems.map((item) => {
           const Icon = item.icon;
           const isActive = currentPage === item.id;
 

@@ -66,3 +66,74 @@ impl PolicyService for DefaultPolicyService {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use uuid::Uuid;
+
+    fn create_test_request(resource: &str) -> AccessRequest {
+        AccessRequest {
+            user_id: Uuid::new_v4(),
+            resource: resource.to_string(),
+            action: "read".to_string(),
+            ip: None,
+            request_count: 0,
+        }
+    }
+
+    #[tokio::test]
+    async fn test_allow_low_risk() {
+        let service = DefaultPolicyService;
+        let request = create_test_request("public/data");
+        let result = service.evaluate_policy(&request, 15).await.unwrap();
+        
+        assert_eq!(result.decision, "ALLOW");
+        assert!(result.allowed);
+        assert!(!result.mfa_required);
+    }
+
+    #[tokio::test]
+    async fn test_verify_medium_risk() {
+        let service = DefaultPolicyService;
+        let request = create_test_request("public/data");
+        let result = service.evaluate_policy(&request, 45).await.unwrap();
+        
+        assert_eq!(result.decision, "VERIFY");
+        assert!(!result.allowed);
+        assert!(result.mfa_required);
+    }
+
+    #[tokio::test]
+    async fn test_deny_high_risk() {
+        let service = DefaultPolicyService;
+        let request = create_test_request("public/data");
+        let result = service.evaluate_policy(&request, 75).await.unwrap();
+        
+        assert_eq!(result.decision, "DENY");
+        assert!(!result.allowed);
+        assert!(!result.mfa_required);
+    }
+
+    #[tokio::test]
+    async fn test_admin_high_risk_special_case() {
+        let service = DefaultPolicyService;
+        let request = create_test_request("admin/panel");
+        let result = service.evaluate_policy(&request, 50).await.unwrap();
+        
+        assert_eq!(result.decision, "DENY");
+        assert!(!result.allowed);
+        assert!(result.mfa_required);
+        assert_eq!(result.reason, "Admin access restricted at elevated risk level");
+    }
+
+    #[tokio::test]
+    async fn test_admin_low_risk() {
+        let service = DefaultPolicyService;
+        let request = create_test_request("admin/panel");
+        let result = service.evaluate_policy(&request, 25).await.unwrap();
+        
+        assert_eq!(result.decision, "ALLOW");
+        assert!(result.allowed);
+    }
+}

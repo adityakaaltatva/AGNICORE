@@ -6,6 +6,8 @@ pub struct AccessRequest {
     pub user_id: Uuid,
     pub resource: String,
     pub action: String,
+    pub ip: Option<String>,
+    pub request_count: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

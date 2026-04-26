@@ -8,6 +8,7 @@ use uuid::Uuid;
 pub trait LogRepository: Send + Sync {
     async fn log_access(&self, user: &str, resource: &str, risk: i32, decision: &str) -> Result<(), crate::errors::AppError>;
     async fn get_recent_logs(&self, limit: i64) -> Result<Vec<LogEntry>, crate::errors::AppError>;
+    async fn count_recent_requests(&self, user: &str, minutes: i64) -> Result<i64, crate::errors::AppError>;
 }
 
 pub struct SqliteLogRepository {
@@ -36,7 +37,7 @@ impl LogRepository for SqliteLogRepository {
         .execute(&self.pool)
         .await
         .map_err(|e| {
-            tracing::error!("Database error: {e}");
+            tracing::error!("Database error logging access: {e}");
             crate::errors::AppError::InternalServerError
         })?;
         Ok(())
@@ -50,9 +51,28 @@ impl LogRepository for SqliteLogRepository {
         .fetch_all(&self.pool)
         .await
         .map_err(|e| {
-            tracing::error!("Database error: {e}");
+            tracing::error!("Database error fetching logs: {e}");
             crate::errors::AppError::InternalServerError
         })?;
         Ok(logs)
+    }
+
+    async fn count_recent_requests(
+        &self,
+        user: &str,
+        minutes: i64,
+    ) -> Result<i64, crate::errors::AppError> {
+        let count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM logs WHERE user = ? AND created_at > datetime('now', ?)"
+        )
+        .bind(user)
+        .bind(format!("-{minutes} minutes"))
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error counting recent requests: {e}");
+            crate::errors::AppError::InternalServerError
+        })?;
+        Ok(count)
     }
 }

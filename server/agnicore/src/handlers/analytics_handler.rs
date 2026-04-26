@@ -1,17 +1,18 @@
 use axum::{extract::State, Json};
 use serde_json::json;
-use std::sync::Arc;
 
 use crate::errors::app_error::AppError;
-use crate::repository::log_repository::LogRepository;
+use crate::state::AppState;
 
 pub async fn get_analytics(
-    State(repo): State<Arc<dyn LogRepository>>,
+    State(state): State<AppState>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    // 🔹 Get recent logs
-    let logs = repo.get_recent_logs(100).await.unwrap_or_default();
+    let logs = state.log_repo.get_recent_logs(100).await?;
 
-    // 🔹 Calculate analytics from logs
+    if logs.is_empty() {
+        return Err(AppError::NotFound);
+    }
+
     let total_requests = logs.len() as i64;
     let avg_risk: f64 = if total_requests > 0 {
         logs.iter().map(|l| l.risk_score as f64).sum::<f64>() / total_requests as f64
@@ -21,7 +22,6 @@ pub async fn get_analytics(
 
     let denied_count = logs.iter().filter(|l| l.decision == "DENY").count() as i64;
 
-    // 🔹 Group by user to find risky users
     let mut user_risk_map: std::collections::HashMap<String, (i32, i64)> = std::collections::HashMap::new();
     for log in &logs {
         let entry = user_risk_map.entry(log.user.clone()).or_insert((0, 0));

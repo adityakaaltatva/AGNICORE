@@ -6,15 +6,18 @@ import SimulationForm from '../components/SimulationForm';
 import { SimulationInput, SimulationResult } from '../types';
 import { api } from '../lib/api';
 
+interface AccessResponse {
+  risk_score: number;
+  decision: string;
+}
+
 export default function Simulation() {
   const [result, setResult] = useState<SimulationResult | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
 
   const handleSimulate = async (input: SimulationInput) => {
-    setIsLoading(true);
     try {
       const token = localStorage.getItem('agnicore_token');
-      const response = await api.post<any>('/access/access', {
+      const response = await api.post<AccessResponse>('/access/access', {
         token,
         resource: `${input.sensitivity.toLowerCase()} / ${input.action}`,
       });
@@ -60,11 +63,9 @@ export default function Simulation() {
         },
       ];
 
-      setResult({ riskScore, decision, reasons, stages });
+      setResult({ riskScore, decision: decision as 'ALLOW' | 'VERIFY' | 'DENY', reasons, stages });
     } catch (error) {
       console.error('Simulation failed:', error);
-    } finally {
-      setIsLoading(false);
     }
   };
 

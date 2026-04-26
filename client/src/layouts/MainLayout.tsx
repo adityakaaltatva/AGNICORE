@@ -7,6 +7,8 @@ interface MainLayoutProps {
   readonly currentPage: string;
   readonly onNavigate: (page: string) => void;
   readonly onLogout: () => void;
+  readonly isAdmin: boolean;
+  readonly user?: { username: string; role: string } | null;
 }
 
 export default function MainLayout({
@@ -14,6 +16,8 @@ export default function MainLayout({
   currentPage,
   onNavigate,
   onLogout,
+  isAdmin,
+  user,
 }: MainLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -26,12 +30,17 @@ export default function MainLayout({
         currentPage={currentPage}
         onLogout={onLogout}
         onOpenMenu={() => setIsSidebarOpen(true)}
+        user={user}
       />
 
       <div className="page-grid pt-5">
         <div className="flex gap-6">
           <div className="hidden xl:block xl:w-[280px] xl:shrink-0">
-            <Sidebar currentPage={currentPage} onNavigate={onNavigate} />
+            <Sidebar 
+              currentPage={currentPage} 
+              onNavigate={onNavigate} 
+              isAdmin={isAdmin}
+            />
           </div>
 
           <main className="min-w-0 flex-1">{children}</main>
@@ -50,6 +59,7 @@ export default function MainLayout({
               currentPage={currentPage}
               onNavigate={onNavigate}
               onClose={() => setIsSidebarOpen(false)}
+              isAdmin={isAdmin}
             />
           </div>
         </div>

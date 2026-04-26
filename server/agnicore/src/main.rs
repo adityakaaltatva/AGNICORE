@@ -1,20 +1,13 @@
-mod handlers;
-mod routes;
-mod domain;
-mod repository;
-mod services;
-mod middleware;
-mod utils;
-mod errors;
-mod db;
-
 use std::sync::Arc;
 use std::net::SocketAddr;
 use std::env;
 use tokio::net::TcpListener;
 use axum::{routing::get, Router};
+use tower_http::limit::RequestBodyLimitLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-
+use agnicore::{db, routes, repository, state::AppState};
+use agnicore::repository::user_repository::UserRepository;
+use agnicore::services::user_service::UserService;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -29,7 +22,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    // 🔹 Initialize Database Schema
+    // 🔹 Initialize Audit Database
     let pool = db::connection::connect_db().await?;
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS logs (
@@ -44,21 +37,61 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     .execute(&pool)
     .await?;
 
-    // 🔹 Build router
-    let log_repo = Arc::new(repository::log_repository::SqliteLogRepository::new(pool.clone()));
+    // 🔹 Initialize Users Database
+    let users_pool = db::users_connection::connect_users_db().await?;
     
+    // 🔹 Create repositories
+    let log_repo = Arc::new(repository::log_repository::SqliteLogRepository::new(pool.clone()));
+    let user_repo = Arc::new(repository::user_repository::SqliteUserRepository::new(users_pool.clone()));
+    
+    // 🔹 Auto-create first admin if no users exist
+    let user_count = user_repo.count_users().await?;
+    if user_count == 0 {
+        tracing::info!("No users found. Creating first admin user...");
+        let admin_username = env::var("ADMIN_USERNAME").unwrap_or_else(|_| "admin".to_string());
+        let admin_password = env::var("ADMIN_PASSWORD").unwrap_or_else(|_| "admin123!".to_string());
+        
+        let user_service = UserService::new(user_repo.clone());
+        match user_service.create_admin(&admin_username, &admin_password).await {
+            Ok(user) => tracing::info!("Admin user created: {}", user.username),
+            Err(e) => tracing::error!("Failed to create admin user: {:?}", e),
+        }
+    }
+    
+    // 🔹 Build app state
+    let app_state = AppState::new(log_repo, user_repo);
+    
+    // 🔹 CORS - Restrict to frontend origin
+    let allowed_origins = env::var("ALLOWED_ORIGINS")
+        .unwrap_or_else(|_| "http://localhost:5173,http://127.0.0.1:5173".to_string());
+    
+    let origins: Vec<&str> = allowed_origins.split(',').collect();
     let cors = tower_http::cors::CorsLayer::new()
-        .allow_origin("http://localhost:5173".parse::<axum::http::HeaderValue>().unwrap())
+        .allow_origin(origins.iter().map(|origin| {
+            origin.parse::<axum::http::HeaderValue>().expect("Invalid CORS origin")
+        }).collect::<Vec<_>>())
         .allow_methods([axum::http::Method::GET, axum::http::Method::POST])
         .allow_headers([
             axum::http::HeaderName::from_static("content-type"),
             axum::http::HeaderName::from_static("authorization"),
-        ]);
+        ])
+        .max_age(std::time::Duration::from_secs(3600));
+
+    // 🔹 Security headers middleware
+    let security_headers = tower_http::set_header::SetResponseHeaderLayer::if_not_present(
+        axum::http::header::X_CONTENT_TYPE_OPTIONS,
+        axum::http::HeaderValue::from_static("nosniff"),
+    );
+
+    // 🔹 Request body size limit (1MB max)
+    let body_limit = RequestBodyLimitLayer::new(1024 * 1024);
 
     let app = Router::new()
         .route("/", get(root))
         .nest("/api", routes::create_routes())
-        .with_state(log_repo)
+        .with_state(app_state)
+        .layer(body_limit)
+        .layer(security_headers)
         .layer(cors);
 
     // 🔹 Bind server

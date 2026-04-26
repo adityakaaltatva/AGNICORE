@@ -3,7 +3,7 @@ import { Search, Siren, ShieldCheck, ShieldX } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
 import { getDecisionMeta, getRiskMeta } from '../lib/ui';
 import { api } from '../lib/api';
-import { LogEntry } from '../types';
+import { LogEntry, Decision } from '../types';
 
 export default function Logs() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -12,7 +12,15 @@ export default function Logs() {
   useEffect(() => {
     async function fetchLogs() {
       try {
-        const data = await api.get<any[]>('/access/logs');
+        interface BackendLog {
+          id: string;
+          user: string;
+          risk_score: number;
+          decision: string;
+          created_at: string;
+          resource: string;
+        }
+        const data = await api.get<BackendLog[]>('/access/logs');
         setLogs(data.map(log => ({
           id: log.id,
           timestamp: new Date(log.created_at).toLocaleString(),
@@ -20,7 +28,7 @@ export default function Logs() {
           ip: 'Dynamic',
           device: 'Auto-detected',
           riskScore: log.risk_score,
-          decision: log.decision,
+          decision: log.decision as Decision,
           location: 'Remote',
           resource: log.resource,
           reason: log.decision === 'DENY' ? 'Security policy enforcement' : 'Standard access verification',

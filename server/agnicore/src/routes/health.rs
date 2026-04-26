@@ -1,9 +1,8 @@
 use axum::{routing::get, Json, Router};
-use std::sync::Arc;
 use serde_json::json;
-use crate::repository::log_repository::LogRepository;
+use crate::state::AppState;
 
-pub fn create_route() -> Router<Arc<dyn LogRepository>> {
+pub fn create_route() -> Router<AppState> {
     Router::new().route("/", get(health_check))
 }
 

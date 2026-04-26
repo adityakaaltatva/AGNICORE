@@ -1,46 +1,101 @@
 import { useState } from 'react';
 import { api } from '../lib/api';
 
-interface LoginProps {
-  readonly onLogin: () => void;
-  readonly onShowRegister: () => void;
+interface RegisterProps {
+  readonly onRegister: () => void;
 }
 
-export default function Login({ onLogin, onShowRegister }: LoginProps) {
+export default function Register({ onRegister }: RegisterProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setIsLoading(true);
     setError(null);
 
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const response = await api.post<{ token: string; user: Record<string, unknown> }>('/auth/login', {
+      await api.post('/auth/register', {
         username,
         password,
       });
 
-      localStorage.setItem('agnicore_token', response.token);
-      localStorage.setItem('agnicore_user', JSON.stringify(response.user));
-      onLogin();
+      setSuccess(true);
+      setTimeout(() => {
+        onRegister();
+      }, 3000);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Invalid credentials';
-      if (message.includes('Forbidden')) {
-        setError('Your account is pending approval. Please wait for admin confirmation.');
-      } else {
-        setError(message);
-      }
+      const message = err instanceof Error ? err.message : 'Registration failed';
+      setError(message);
     } finally {
       setIsLoading(false);
     }
   };
 
-  return (
+  if (success) {
+    return (
     <div className="min-h-screen flex items-center justify-center text-[#dde4e5] px-4 py-6 sm:px-6 lg:px-8 relative overflow-hidden"
+        style={{
+          backgroundColor: '#020617',
+          backgroundImage: `
+            radial-gradient(circle at 15% 50%, rgba(34, 211, 238, 0.15) 0%, transparent 50%),
+            radial-gradient(circle at 85% 30%, rgba(236, 106, 6, 0.15) 0%, transparent 50%)
+          `
+        }}
+      >
+        <div 
+          className="absolute inset-0 pointer-events-none z-0"
+          style={{
+            backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px)',
+            backgroundSize: '40px 40px'
+          }}
+        />
+
+        <main className="w-full max-w-[520px] relative z-10">
+          <div className="text-center mb-12">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-[#22d3ee] drop-shadow-[0_0_8px_rgba(34,211,238,0.4)] tracking-widest uppercase mb-2">
+              AGNICORE
+            </h1>
+          </div>
+
+          <div className="relative rounded-[24px] p-6 sm:p-8 lg:p-10 w-full overflow-hidden text-center"
+            style={{
+              background: 'rgba(2, 12, 27, 0.6)',
+              backdropFilter: 'blur(40px)',
+              WebkitBackdropFilter: 'blur(40px)',
+              borderTop: '1px solid rgba(34, 211, 238, 0.3)',
+              borderLeft: '1px solid rgba(34, 211, 238, 0.2)',
+              borderRight: '1px solid rgba(236, 106, 6, 0.2)',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.05)'
+            }}
+          >
+            <div className="text-5xl mb-4">✅</div>
+            <h2 className="text-2xl font-semibold text-[#dde4e5] mb-3">Registration Successful</h2>
+            <p className="text-[#bbc9cd] mb-2">
+              Your account has been created and is pending admin approval.
+            </p>
+            <p className="text-sm text-[#859397]">
+              Redirecting to login page...
+            </p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center text-[#dde4e5] p-6 relative overflow-hidden"
       style={{
         backgroundColor: '#020617',
         backgroundImage: `
@@ -91,7 +146,7 @@ export default function Login({ onLogin, onShowRegister }: LoginProps) {
         </div>
 
         {/* Main Card */}
-        <div className="relative rounded-[24px] p-10 w-full overflow-hidden"
+        <div className="relative rounded-[24px] p-6 sm:p-8 lg:p-10 w-full overflow-hidden"
           style={{
             background: 'rgba(2, 12, 27, 0.6)',
             backdropFilter: 'blur(40px)',
@@ -115,8 +170,8 @@ export default function Login({ onLogin, onShowRegister }: LoginProps) {
 
           {/* Card Header */}
           <div className="mb-8 text-center border-b border-white/5 pb-4">
-            <h2 className="text-3xl font-semibold text-[#dde4e5] mb-1">Access Gateway</h2>
-            <p className="text-base text-[#bbc9cd]">Authenticate to establish secure session</p>
+            <h2 className="text-3xl font-semibold text-[#dde4e5] mb-1">Create Account</h2>
+            <p className="text-base text-[#bbc9cd]">Register for access to the command center</p>
           </div>
 
           {/* Zero Trust Badge */}
@@ -136,10 +191,10 @@ export default function Login({ onLogin, onShowRegister }: LoginProps) {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* ID Field */}
+            {/* Username Field */}
             <div className="space-y-1">
               <label className="text-sm tracking-wider text-[#859397] block ml-2 font-mono">
-                OPERATIVE ID
+                USERNAME
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -150,36 +205,53 @@ export default function Login({ onLogin, onShowRegister }: LoginProps) {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="w-full rounded-lg py-3 pl-10 pr-3 text-base bg-[#020c1b] border border-white/10 text-[#dde4e5] placeholder-white/30 focus:border-[#22d3ee] focus:shadow-[0_0_15px_rgba(34,211,238,0.2)] focus:outline-none transition-all"
-                  placeholder="Enter alphanumeric identifier"
+                  placeholder="Choose a username"
                   required
+                  minLength={3}
+                  maxLength={32}
                 />
               </div>
             </div>
 
-            {/* Credential Field */}
+            {/* Password Field */}
             <div className="space-y-1">
               <label className="text-sm tracking-wider text-[#859397] block ml-2 font-mono">
-                CREDENTIAL KEY
+                PASSWORD
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <span className="text-[#859397]">🔒</span>
                 </div>
                 <input
-                  type={showPassword ? 'text' : 'password'}
+                  type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-lg py-3 pl-10 pr-10 text-base bg-[#020c1b] border border-white/10 text-[#dde4e5] placeholder-white/30 focus:border-[#22d3ee] focus:shadow-[0_0_15px_rgba(34,211,238,0.2)] focus:outline-none transition-all"
+                  className="w-full rounded-lg py-3 pl-10 pr-3 text-base bg-[#020c1b] border border-white/10 text-[#dde4e5] placeholder-white/30 focus:border-[#22d3ee] focus:shadow-[0_0_15px_rgba(34,211,238,0.2)] focus:outline-none transition-all"
+                  placeholder="••••••••••••••••"
+                  required
+                  minLength={12}
+                />
+              </div>
+              <p className="text-xs text-[#859397] mt-1 ml-2">Min 12 chars, uppercase, lowercase, number, special char</p>
+            </div>
+
+            {/* Confirm Password Field */}
+            <div className="space-y-1">
+              <label className="text-sm tracking-wider text-[#859397] block ml-2 font-mono">
+                CONFIRM PASSWORD
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <span className="text-[#859397]">🔒</span>
+                </div>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full rounded-lg py-3 pl-10 pr-3 text-base bg-[#020c1b] border border-white/10 text-[#dde4e5] placeholder-white/30 focus:border-[#22d3ee] focus:shadow-[0_0_15px_rgba(34,211,238,0.2)] focus:outline-none transition-all"
                   placeholder="••••••••••••••••"
                   required
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#859397] hover:text-[#22d3ee] transition-colors"
-                >
-                  <span>{showPassword ? '🙈' : '👁'}</span>
-                </button>
               </div>
             </div>
 
@@ -195,21 +267,24 @@ export default function Login({ onLogin, onShowRegister }: LoginProps) {
                 }}
               >
                 <span className="text-xs font-bold text-white tracking-widest uppercase">
-                  {isLoading ? 'Authenticating...' : 'Initialize Session'}
+                  {isLoading ? 'Creating Account...' : 'Create Account'}
                 </span>
-                <span className="text-white">→</span>
+                <span className="text-white">✨</span>
               </button>
             </div>
           </form>
 
           {/* Card Footer */}
           <div className="mt-8 pt-4 border-t border-white/5 flex flex-col items-center gap-2">
-            <button
-              onClick={onShowRegister}
-              className="text-sm tracking-wider text-[#859397] hover:text-[#ec6a06] transition-colors"
-            >
-              Register Access
-            </button>
+            <p className="text-sm text-[#859397]">
+              Already have an account?{' '}
+              <button
+                onClick={onRegister}
+                className="text-[#22d3ee] hover:text-[#ec6a06] transition-colors font-medium"
+              >
+                Sign in
+              </button>
+            </p>
             <div className="flex items-center gap-2 mt-1 opacity-50">
               <span className="text-[12px] text-[#859397]">🔐</span>
               <span className="text-[10px] text-[#859397] tracking-[0.2em] uppercase">256-bit AES encrypted</span>

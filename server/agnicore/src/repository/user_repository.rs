@@ -1,0 +1,185 @@
+use async_trait::async_trait;
+use sqlx::SqlitePool;
+use crate::domain::user_models::{User, UserResponse};
+use chrono::Utc;
+use uuid::Uuid;
+
+#[async_trait]
+pub trait UserRepository: Send + Sync {
+    async fn create_user(&self,
+        username: &str,
+        password_hash: &str,
+        role: &str,
+        status: &str,
+    ) -> Result<User, crate::errors::AppError>;
+    
+    async fn find_by_username(&self,
+        username: &str,
+    ) -> Result<Option<User>, crate::errors::AppError>;
+    
+    async fn find_by_id(
+        &self,
+        id: &str,
+    ) -> Result<Option<User>, crate::errors::AppError>;
+    
+    async fn update_status(
+        &self,
+        id: &str,
+        status: &str,
+    ) -> Result<(), crate::errors::AppError>;
+    
+    async fn list_users(
+        &self,
+    ) -> Result<Vec<UserResponse>, crate::errors::AppError>;
+    
+    async fn count_users(&self,
+    ) -> Result<i64, crate::errors::AppError>;
+}
+
+pub struct SqliteUserRepository {
+    pool: SqlitePool,
+}
+
+impl SqliteUserRepository {
+    pub fn new(pool: SqlitePool) -> Self {
+        Self { pool }
+    }
+}
+
+#[async_trait]
+impl UserRepository for SqliteUserRepository {
+    async fn create_user(
+        &self,
+        username: &str,
+        password_hash: &str,
+        role: &str,
+        status: &str,
+    ) -> Result<User, crate::errors::AppError> {
+        let now = Utc::now().to_rfc3339();
+        let user = User {
+            id: Uuid::new_v4().to_string(),
+            username: username.to_string(),
+            password_hash: password_hash.to_string(),
+            role: role.to_string(),
+            status: status.to_string(),
+            created_at: now.clone(),
+            updated_at: now,
+        };
+        
+        sqlx::query(
+            "INSERT INTO users (id, username, password_hash, role, status, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?)"
+        )
+        .bind(&user.id)
+        .bind(&user.username)
+        .bind(&user.password_hash)
+        .bind(&user.role)
+        .bind(&user.status)
+        .bind(&user.created_at)
+        .bind(&user.updated_at)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error creating user: {e}");
+            if e.to_string().contains("UNIQUE constraint failed") {
+                crate::errors::AppError::BadRequest("Username already exists".to_string())
+            } else {
+                crate::errors::AppError::InternalServerError
+            }
+        })?;
+        
+        Ok(user)
+    }
+    
+    async fn find_by_username(
+        &self,
+        username: &str,
+    ) -> Result<Option<User>, crate::errors::AppError> {
+        let user = sqlx::query_as::<_, User>(
+            "SELECT id, username, password_hash, role, status, created_at, updated_at 
+             FROM users WHERE username = ?"
+        )
+        .bind(username)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error finding user: {e}");
+            crate::errors::AppError::InternalServerError
+        })?;
+        
+        Ok(user)
+    }
+    
+    async fn find_by_id(
+        &self,
+        id: &str,
+    ) -> Result<Option<User>, crate::errors::AppError> {
+        let user = sqlx::query_as::<_, User>(
+            "SELECT id, username, password_hash, role, status, created_at, updated_at 
+             FROM users WHERE id = ?"
+        )
+        .bind(id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error finding user by id: {e}");
+            crate::errors::AppError::InternalServerError
+        })?;
+        
+        Ok(user)
+    }
+    
+    async fn update_status(
+        &self,
+        id: &str,
+        status: &str,
+    ) -> Result<(), crate::errors::AppError> {
+        let now = Utc::now().to_rfc3339();
+        sqlx::query(
+            "UPDATE users SET status = ?, updated_at = ? WHERE id = ?"
+        )
+        .bind(status)
+        .bind(now)
+        .bind(id)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error updating user status: {e}");
+            crate::errors::AppError::InternalServerError
+        })?;
+        
+        Ok(())
+    }
+    
+    async fn list_users(
+        &self,
+    ) -> Result<Vec<UserResponse>, crate::errors::AppError> {
+        let users = sqlx::query_as::<_, UserResponse>(
+            "SELECT id, username, role, status, created_at 
+             FROM users ORDER BY created_at DESC"
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error listing users: {e}");
+            crate::errors::AppError::InternalServerError
+        })?;
+        
+        Ok(users)
+    }
+    
+    async fn count_users(&self,
+    ) -> Result<i64, crate::errors::AppError> {
+        let count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM users"
+        )
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error counting users: {e}");
+            crate::errors::AppError::InternalServerError
+        })?;
+        
+        Ok(count)
+    }
+}

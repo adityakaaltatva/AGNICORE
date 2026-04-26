@@ -9,17 +9,16 @@ import MetricCard from '../components/MetricCard';
 import PageHeader from '../components/PageHeader';
 import RequestsTable from '../components/RequestsTable';
 import { api } from '../lib/api';
-import { DashboardMetrics, AccessRequest } from '../types';
+import { DashboardMetrics, AccessRequest, Decision } from '../types';
 
-const getSeverity = (score: number): 'low' | 'medium' | 'high' => {
-  if (score > 60) {
-    return 'high';
-  }
-  if (score > 30) {
-    return 'medium';
-  }
-  return 'low';
-};
+interface LogResponse {
+  id: string;
+  user: string;
+  risk_score: number;
+  decision: string;
+  created_at: string;
+  resource: string;
+}
 
 export default function Dashboard() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
@@ -32,7 +31,7 @@ export default function Dashboard() {
       try {
         const [metricsData, logsData] = await Promise.all([
           api.get<DashboardMetrics>('/access/metrics'),
-          api.get<any[]>('/access/logs'),
+          api.get<LogResponse[]>('/access/logs'),
         ]);
         
         setMetrics(metricsData);
@@ -46,7 +45,7 @@ export default function Dashboard() {
             ip: 'Dynamic',
             device: 'Dynamic',
             riskScore: log.risk_score,
-            decision: log.decision,
+            decision: log.decision as Decision,
             time: new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             resource: log.resource,
             action: 'access',
@@ -56,7 +55,7 @@ export default function Dashboard() {
           };
         }));
         setError(null);
-      } catch (err: any) {
+      } catch (err) {
         console.error('Failed to fetch dashboard data:', err);
         setError('Unable to reach Trust Engine. Please check if the backend is active.');
       } finally {

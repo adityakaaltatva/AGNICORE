@@ -1,8 +1,7 @@
-use std::sync::Arc;
 use axum::extract::State;
 use axum::Json;
 use serde::Serialize;
-use crate::repository::log_repository::LogRepository;
+use crate::state::AppState;
 
 #[derive(Serialize)]
 pub struct DashboardMetrics {
@@ -16,9 +15,9 @@ pub struct DashboardMetrics {
 }
 
 pub async fn handle_get_metrics(
-    State(repo): State<Arc<dyn LogRepository>>,
+    State(state): State<AppState>,
 ) -> Result<Json<DashboardMetrics>, crate::errors::AppError> {
-    let logs = repo.get_recent_logs(100).await?;
+    let logs = state.log_repo.get_recent_logs(100).await?;
     
     let total = logs.len() as i64;
     let blocked = logs.iter().filter(|l| l.decision == "DENY").count() as i64;
