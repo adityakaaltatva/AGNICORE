@@ -57,7 +57,8 @@ export default function Dashboard() {
         setError(null);
       } catch (err) {
         console.error('Failed to fetch dashboard data:', err);
-        setError('Unable to reach Trust Engine. Please check if the backend is active.');
+        const errorMessage = err instanceof Error ? err.message : 'Unable to reach Trust Engine. Please check if the backend is active.';
+        setError(errorMessage);
       } finally {
         setIsLoading(false);
       }

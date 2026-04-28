@@ -20,6 +20,15 @@ export async function apiRequest<T>(
   });
 
   if (!response.ok) {
+    // Handle token expiration
+    if (response.status === 401) {
+      localStorage.removeItem('agnicore_token');
+      localStorage.removeItem('agnicore_user');
+      // Dispatch a custom event to notify the app of logout
+      window.dispatchEvent(new CustomEvent('sessionExpired'));
+      throw new Error('Session expired. Please log in again.');
+    }
+    
     const error = await response.json().catch(() => ({ message: 'An unknown error occurred' }));
     throw new Error(error.message || response.statusText);
   }

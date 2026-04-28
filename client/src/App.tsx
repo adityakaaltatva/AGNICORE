@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -16,6 +16,15 @@ interface User {
 
 function getStoredUser(): User | null {
   const userStr = localStorage.getItem('agnicore_user');
+  const token = localStorage.getItem('agnicore_token');
+  
+  // If either is missing, clear both
+  if (!userStr || !token) {
+    localStorage.removeItem('agnicore_token');
+    localStorage.removeItem('agnicore_user');
+    return null;
+  }
+  
   if (userStr) {
     try {
       return JSON.parse(userStr) as User;
@@ -46,6 +55,18 @@ function App() {
       }
     }
   };
+
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      setIsAuthenticated(false);
+      setUser(null);
+      setCurrentPage('dashboard');
+      setShowRegister(false);
+    };
+
+    window.addEventListener('sessionExpired', handleSessionExpired);
+    return () => window.removeEventListener('sessionExpired', handleSessionExpired);
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('agnicore_token');
